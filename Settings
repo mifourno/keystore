@@ -1,0 +1,31 @@
+//##################################
+//##          PROPERTIES
+//##################################
+
+function getSetting(name)  { try  //for logging
+{
+  var settingsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Settings');
+  if (name == 'CopySensitivityFormat') return settingsSheet.getRange("CopySensitivityFormat").getValue() == 'copy these formats';
+  return settingsSheet.getRange(name).getValue();
+} catch(e) { logError(e); throw(e); } } //for logging
+
+function getSettingRange(name)  { try  //for logging
+{
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  return ss.getSheetByName('Settings').getRange(name);
+} catch(e) { logError(e); throw(e); } } //for logging
+
+
+//##################################
+//##          SETTINGS
+//##################################
+
+function setProperty(name, value) { try  //for logging
+{
+  PropertiesService.getScriptProperties().setProperty(name, value);
+} catch(e) { logError(e); throw(e); } } //for logging
+
+function getProperty(name) { try  //for logging
+{
+  return PropertiesService.getScriptProperties().getProperty(name);
+} catch(e) { logError(e); throw(e); } } //for logging
