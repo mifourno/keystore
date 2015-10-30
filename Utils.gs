@@ -1,3 +1,24 @@
+/* ----------------------------------------------------------
+Utils.gs -- 
+Copyright (C) 2015 Mifourno
+
+This software may be modified and distributed under the terms
+of the MIT license.  See the LICENSE file for details.
+
+GitHub: https://github.com/mifourno/keystore/
+Contact: mifourno@gmail.com
+
+DEPENDENCIES:
+- Encryption.gs
+- Menu.gs
+- Properties.gs
+- Utils.gs
+- Locking.gs
+- CryptoJSWrapper.gs
+- CryptoJS Files:
+    => CryptoJS_aes.gs
+---------------------------------------------------------- */
+
 function isNullOrWS(value) { try  //for logging
 {
   return (value === 'undefined' || value == null || value == '' || typeof value === 'string' && value.trim() == '')
@@ -12,7 +33,7 @@ function isRangeCrypted(range) { try  //for logging
 
 function isLocked()  { try  //for logging
 {
-  var pek = getProperty('PEK');
+  var pek = getP_PEK();
   return isNullOrWS(pek);
 } catch(e) { logError(e); throw(e); } } //for logging
 
@@ -41,15 +62,25 @@ function logError(ex)
 }
 function log(type, message, details)
 {
+  if (isNullOrWS(details)) Logger.log('Type: %s, Message: %s', type, message);
+  else Logger.log('Type: %s, Message: %s\nDetails: %s', type, message, details);
+ 
   var sheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Logs');
-  var time  = new Date(); 
-  if (isNullOrWS(details)) details = '';
-  sheet.appendRow([time, type, message, details]);
+  if (sheet != null) {
+    var time  = new Date(); 
+    if (isNullOrWS(details)) details = '';
+    sheet.appendRow([time, type, message, details]);
+  }
 }
 
 function emptyLogs() {  try  //for logging
 {
-  var logsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Logs').getRange('A2:D10000').clearContent();;
+  var ui = SpreadsheetApp.getUi();
+  var result = ui.alert('Clear logs', 'Are you sure you want to empty this log table?', ui.ButtonSet.YES_NO);
+  if (result == ui.Button.YES) {
+    var logsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Logs');
+    if (logsSheet != null) logsSheet.getRange('A2:D10000').clearContent();
+  }
 } catch(e) { logError(e); throw(e); } } //for loggin
 
 //############################
@@ -80,11 +111,11 @@ function genNewPassword(length, mode) {  try  //for logging
   // mode 4: With symbols
   // mode 5: With punctuation
   var charset = '';
-  if (mode == 1) charset = getSetting('GenPassNum');
-  else if (mode == 2) charset = getSetting('GenPassAlpha');
-  else charset = getSetting('GenPassNum') + getSetting('GenPassAlpha');
-  if (mode > 3) charset += getSetting('GenPassSymb');
-  if (mode > 4) charset += getSetting('GenPassPunct');
+  if (mode == 1) charset = getP_GenPassNum();
+  else if (mode == 2) charset = getP_GenPassAlpha();
+  else charset = getP_GenPassNum() + getP_GenPassAlpha();
+  if (mode > 3) charset += getP_GenPassSymbols();
+  if (mode > 4) charset += getP_GenPassPuntuations();
   var retVal = '';
   for (var i = 0, n = charset.length; i < length; ++i) retVal += charset.charAt(Math.floor(Math.random() * n));
   return retVal;
