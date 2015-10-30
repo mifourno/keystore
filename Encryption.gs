@@ -1,12 +1,34 @@
+/* ----------------------------------------------------------
+Encryption.gs -- 
+Copyright (C) 2015 Mifourno
+
+This software may be modified and distributed under the terms
+of the MIT license.  See the LICENSE file for details.
+
+GitHub: https://github.com/mifourno/keystore/
+Contact: mifourno@gmail.com
+
+DEPENDENCIES:
+- Encryption.gs
+- Menu.gs
+- Properties.gs
+- Utils.gs
+- Locking.gs
+- CryptoJSWrapper.gs
+- CryptoJS Files:
+    => CryptoJS_aes.gs
+---------------------------------------------------------- */
+
 function markAsSensitive() { try  //for logging
 {
   if (!assertUnlocked()) return false;
-  var pek = getProperty('PEK');
+  var pek = getP_PEK();
   var sheet = SpreadsheetApp.getActiveSheet();
   var range = SpreadsheetApp.getActiveSheet().getActiveRange();
-  var protectionMessage = getProperty('ProtectionMessage');
-  var copySensitivityFormat = getSetting('CopySensitivityFormat');
-  var sensitiveDataFormat = getSettingRange('SensitiveDataFormat');
+  var protectionMessage = getP_ProtectionMessage();
+  var setFormatAtEncryption = getP_SetFormatAtEncryption();
+  var backGround = getP_EncryptedFormat_BackGround();
+  var color = getP_EncryptedFormat_Color();
   for (var i = range.getColumnIndex(); i <= range.getLastColumn(); ++i)
   {
     for (var j = range.getRowIndex(); j <= range.getLastRow(); ++j) 
@@ -24,7 +46,7 @@ function markAsSensitive() { try  //for logging
   {
     for (var row = range.getRowIndex(); row <= range.getLastRow(); ++row) 
     {
-      if (markAsSensitive_SingleCell(sheet, row,col, pek, protectionMessage, copySensitivityFormat, sensitiveDataFormat)) rangeCounter++;
+      if (markAsSensitive_SingleCell(sheet, row,col, pek, protectionMessage, setFormatAtEncryption, backGround, color)) rangeCounter++;
     }
   }
   
@@ -33,19 +55,24 @@ function markAsSensitive() { try  //for logging
 } catch(e) { logError(e); throw(e); } } //for logging
 
 
-function markAsSensitive_SingleCell(sheet, row, col, pek, protectionMessage, copySensitivityFormat, sensitiveDataFormat) { try //for logging
+function markAsSensitive_SingleCell(sheet, row, col, pek, protectionMessage, setFormatAtEncryption, backGround, color) { try //for logging
 {
   var rangeToEncrypt = sheet.getRange(row,col);
   if (isNullOrWS(rangeToEncrypt.getValue())) return false;  
   var protections = sheet.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+  if (rangeToEncrypt.offset(0,1).isBlank()) rangeToEncrypt.offset(0,1).setValue(' ');
+  rangeToEncrypt.setFontLine('line-through');
   rangeToEncrypt.setValue(encrypt(rangeToEncrypt.getValue(),pek));
   var rangeFound = false;
   for (var j = 0; j < protections.length; j++) {
     if (protections[j].getDescription() == protectionMessage && protections[j].getRange().getA1Notation() == rangeToEncrypt.getA1Notation()) { rangeFound = true; break; }
   }
   if (!rangeFound) rangeToEncrypt.protect().setDescription(protectionMessage).setWarningOnly(true);
-  if (copySensitivityFormat) sensitiveDataFormat.copyTo(rangeToEncrypt, { formatOnly: true });
-  rangeToEncrypt.setFontLine('line-through');
+  if (setFormatAtEncryption) {
+    rangeToEncrypt.setBackground(backGround);
+    rangeToEncrypt.setFontColor(color);
+  }
+  
   return true;
 } catch(e) { logError(e); throw(e); } } //for logging
 
@@ -75,7 +102,7 @@ function revealPopup() { try  //for logging
 function reveal(mode) { try  //for logging
 {
   if (!assertUnlocked()) return false;
-  var pek = getProperty('PEK');
+  var pek = getP_PEK();
   
   var sheet = SpreadsheetApp.getActiveSheet();
   var range = sheet.getActiveRange();
@@ -89,8 +116,8 @@ function reveal(mode) { try  //for logging
     }
   } else {
     if (mode != 'permanent') {
-      var revealedRangeSheets = getProperty('RevealedRangeSheets');
-      if (revealedRangeSheets.indexOf(embrace(sheet.getSheetId())) < 0) setProperty('RevealedRangeSheets', revealedRangeSheets + embrace(sheet.getSheetId()));
+      var revealedRangeSheets = getP_RevealedRangeSheets();
+      if (revealedRangeSheets.indexOf(embrace(sheet.getSheetId())) < 0) setP_RevealedRangeSheets(revealedRangeSheets + embrace(sheet.getSheetId()));
     }
     for (var col = range.getColumnIndex(); col <= range.getLastColumn(); ++col)
     {
@@ -104,10 +131,17 @@ function reveal(mode) { try  //for logging
           currentRange.setFontLine('none');
           if (mode == 'permanent') {
             removeProtection(currentRange);
-            if (getSetting('CopySensitivityFormat')) getSettingRange('UnmarkedDataFormat').copyTo(currentRange, { formatOnly: true });
+            if (getP_SetFormatAtEncryption()) {
+              currentRange.setBackground(getP_DecryptedFormat_BackGround());
+              currentRange.setFontColor(getP_DecryptedFormat_Color());
+            }
           } else {
-            if (getSetting('CopySensitivityFormat')) getSettingRange('RevealedDataFormat').copyTo(currentRange, { formatOnly: true });
+            if (getP_SetFormatAtEncryption()) {
+              currentRange.setBackground(getP_RevealedFormat_BackGround());
+              currentRange.setFontColor(getP_RevealedFormat_Color());
+            }
           }
+          if (currentRange.offset(0,1).getValue() == ' ') currentRange.offset(0,1).clear();
         }
       }
     }
@@ -137,14 +171,14 @@ function autoReencryptRevealedRange() { try  //for logging
 function reencryptRevealedRange() { try  //for logging
 {
   var allSheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
-  var revealedRangeSheets = getProperty('RevealedRangeSheets');
+  var revealedRangeSheets = getP_RevealedRangeSheets();
   if (!isNullOrWS(revealedRangeSheets)) {
     for (var j = 0; j < allSheets.length; j++) {
       if (revealedRangeSheets.indexOf(embrace(allSheets[j].getSheetId())) >= 0)
       {
         syncLineThroughAndProtectionOnSheet(allSheets[j]);
         revealedRangeSheets = revealedRangeSheets.replace(embrace(allSheets[j].getSheetId()), '');
-        setProperty('RevealedRangeSheets', revealedRangeSheets);
+        setP_RevealedRangeSheets(revealedRangeSheets);
       }
     }
   }
@@ -172,17 +206,18 @@ function syncLineThroughAndProtection()  { try  //for logging
 
 function syncLineThroughAndProtectionOnSheet(sheet) { try  //for logging
 {
-  var pek = getProperty('PEK');
-  var protectionMessage = getProperty('ProtectionMessage');
-  var copySensitivityFormat = getSetting('CopySensitivityFormat');
-  var sensitiveDataFormat = getSettingRange('SensitiveDataFormat');
+  var pek = getP_PEK();
+  var protectionMessage = getP_ProtectionMessage();
+  var setFormatAtEncryption = getP_SetFormatAtEncryption();
+  var backGround = getP_EncryptedFormat_BackGround();
+  var color = getP_EncryptedFormat_Color();
   var protections = sheet.getProtections(SpreadsheetApp.ProtectionType.RANGE);
   var dirtyRange = '';
   for (var i = 0; i < protections.length; i++) {
-    if (protections[i].getDescription() == getProperty('ProtectionMessage')) {
+    if (protections[i].getDescription() == protectionMessage) {
       if (protections[i].getRange().isBlank()) protections[i].remove();
       else if (!isRangeCrypted(protections[i].getRange())) { 
-        if (!isNullOrWS(pek)) markAsSensitive_SingleCell(sheet, protections[i].getRange().getRow(), protections[i].getRange().getColumn(), pek, protectionMessage, copySensitivityFormat, sensitiveDataFormat);
+        if (!isNullOrWS(pek)) markAsSensitive_SingleCell(sheet, protections[i].getRange().getRow(), protections[i].getRange().getColumn(), pek, protectionMessage, setFormatAtEncryption, backGround, color);
         else dirtyRange += protections[i].getRange().getA1Notation() + ', ';
       }
     }
@@ -206,7 +241,3 @@ function syncLineThroughAndProtectionOnSheet(sheet) { try  //for logging
   }
 } catch(e) { logError(e); throw(e); } } //for logging
 */
-
-
-
-
