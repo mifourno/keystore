@@ -1,7 +1,28 @@
+/* ----------------------------------------------------------
+Locking.gs -- 
+Copyright (C) 2015 Mifourno
+
+This software may be modified and distributed under the terms
+of the MIT license.  See the LICENSE file for details.
+
+GitHub: https://github.com/mifourno/keystore/
+Contact: mifourno@gmail.com
+
+DEPENDENCIES:
+- Encryption.gs
+- Menu.gs
+- Properties.gs
+- Utils.gs
+- Locking.gs
+- CryptoJSWrapper.gs
+- CryptoJS Files:
+    => CryptoJS_aes.gs
+---------------------------------------------------------- */
+
 function assertUnlocked(message, requirePassword)  { try  //for logging
 {
-  setProperty('LastUpdate', new Date());
-  var pek = getProperty('PEK');
+  setP_LastUpdate(new Date());
+  var pek = getP_PEK();
   if (!requirePassword && !isNullOrWS(pek)) return true;
   
   if (isNullOrWS(message)) message = '';
@@ -22,12 +43,12 @@ function assertUnlocked(message, requirePassword)  { try  //for logging
 
 function unlockSpreasheet(masterPassword) { try  //for logging
 {
-  var pek = decrypt(getProperty('EEK'), masterPassword);
+  var pek = decrypt(getP_EEK(), masterPassword);
   if (isNullOrWS(pek)) return false;
   
   log('Diagnostic', 'Unlock spreadshit');
-  setProperty('LastUpdate', new Date());
-  setProperty('PEK', pek);
+  setP_LastUpdate(new Date());
+  setP_PEK(pek);
   startAutoLockTrigger();
   return true;
   
@@ -44,8 +65,8 @@ function lockSpreasheet(source) { try  //for logging
 {
   log('Diagnostic', 'Lock spreadshit (' + source + ')');
   reencryptRevealedRange();
-  setProperty('PEK', '');
-  setProperty('LockedAt', new Date());
+  setP_PEK('');
+  setP_LockedAt(new Date());
   tryRemoveAllTriggers();
 } catch(e) { logError(e); throw(e); } } //for logging
 
@@ -59,10 +80,10 @@ function changeMasterPassword() { try  //for logging
   log('Diagnostic', 'Change master-password');
   if (!assertUnlocked(null, true)) return false;
   
-  var pek = getProperty('PEK');
+  var pek = getP_PEK();
   var newPassword = askForNewMasterPassword();
   if (newPassword != null) {
-    setProperty('EEK', encrypt(pek, newPassword));
+    setP_EEK(encrypt(pek, newPassword));
     var ui = SpreadsheetApp.getUi();
     ui.alert('Success !', 'Your master-password has been changed successfully', ui.ButtonSet.OK);
   }
@@ -71,7 +92,7 @@ function changeMasterPassword() { try  //for logging
 
 function resetSpreasheet() { try  //for logging
 {
-  var programName = PropertiesService.getScriptProperties().getProperty('ProgramName');
+  var programName = getP_ProgramName();
   
   var ui = SpreadsheetApp.getUi();
 
@@ -84,8 +105,9 @@ function resetSpreasheet() { try  //for logging
   if (result == ui.Button.YES) {
     var newPassword = askForNewMasterPassword();
     if (newPassword != null) {
+      initializeProperties(false);
       var newEncryptionKey = generateEncryptionKey();
-      setProperty('EEK', encrypt(newEncryptionKey, newPassword));
+      setP_EEK(encrypt(newEncryptionKey, newPassword));
       unlockSpreasheet(newPassword);
     };
   }   
@@ -152,9 +174,9 @@ function generateEncryptionKey() { try  //for logging
 function checkAutolock()  { try  //for logging
 {
   if (isLocked()) { tryRemoveAllTriggers(); return; }
-  var diffMs = (new Date()) - new Date(getProperty('LastUpdate'));
+  var diffMs = (new Date()) - new Date(getP_LastUpdate());
   var diffSecs = Math.round(((diffMs % 86400000) % 3600000) / 1000); // minutes
-  if (diffSecs > getSetting('AutolockTimespan')*60) {
+  if (diffSecs > getP_AutolockDelay()*60) {
     lockSpreasheet('auto');
     SpreadsheetApp.getActiveSpreadsheet().toast('Keystore is locked', 'Autolock !');
   }
@@ -162,9 +184,9 @@ function checkAutolock()  { try  //for logging
 
 function startAutoLockTrigger()  { try  //for logging
 {
-  var autolockTimespan = getSetting('AutolockTimespan');
-  if (autolockTimespan > 0) {
-    var timespan = Math.ceil(Math.max(autolockTimespan / 10, 1));
-    ScriptApp.newTrigger("checkAutolock").timeBased().everyMinutes(timespan).create();
+  var autolockDelay = getP_AutolockDelay();
+  if (autolockDelay > 0) {
+    var delay = Math.ceil(Math.max(autolockDelay / 10, 1));
+    ScriptApp.newTrigger("checkAutolock").timeBased().everyMinutes(delay).create();
   }
 } catch(e) { logError(e); throw(e); } } //for logging
