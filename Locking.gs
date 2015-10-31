@@ -19,6 +19,11 @@ DEPENDENCIES:
     => CryptoJS_aes.gs
 ---------------------------------------------------------- */
 
+/**
+ * @OnlyCurrentDoc
+ */
+
+
 function assertUnlocked(message, requirePassword)  { try  //for logging
 {
   setP_LastUpdate(new Date());
