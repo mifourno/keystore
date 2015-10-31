@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+    <style>
+      button { margin: 4px 0px; }
+    </style>
+  </head>
+  <body>
+    <div class="sidebar branding-below">
+      
+      <div><b>To encrypt selected cells</b></div>
+      <div><button class="create" id="encrypt">Encrypt selection</button></div>
+      <br>
+      
+      <div><b>To reveal data of selected cells</b></div>
+      <div>
+        <button class="share" id="reveal">Reveal</button>
+        <select id="reveal-mode">
+          <option value="popup">in popup</option>
+          <option value="minute">for few seconds</option>
+          <option value="lock">until next lock</option>
+          <option value="permanent">permanently</option>
+        </select>
+      
+      </div>
+      
+      <br>
+      
+        <div><b>To generate random passwords</b></div> 
+        <label for="chars">Type</label>
+        <select id="chars">
+          <option value="5">With punctuation - Abc123#@%{}[];:,</option>
+          <option value="4">With symbols - Abc123#@%</option>
+          <option value="3">AlphaNum - Abc123</option>
+          <option value="2">Alpha - Abc</option>
+          <option value="1">Numerical - 123</option>
+        </select>
+        
+        <label for="length">Length</label>
+        <select id="length">
+          <option value="20">20</option>
+          <option value="16">16</option>
+          <option value="12">12</option>
+          <option value="10">10</option>
+          <option value="8">8</option>
+          <option value="6">6</option>
+          <option value="4">4</option>
+        </select>
+        
+        <button class="action" id="gen-pass">Generate password</button>  
+      
+      <br><br>
+      <div><b>Other actions</b></div> 
+      <div class="inline form-group">
+      
+        <div>
+          <button id="lock-now">Lock now</button>
+          <button id="settings">Settings</button>
+        </div>
+        <div><a id="change-master">Change master-password</a></div>
+        <div><a id="reset">Reset Keystore</a></div>
+        
+      </div>
+      
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script>
+      $(function() {
+        $('#reveal').click(reveal);
+        $('#encrypt').click(encrypt);
+        $('#gen-pass').click(generatePassword);
+        $('#lock-now').click(lockNow);
+        $('#settings').click(openSettings);
+        $('#change-master').click(changeMaster);
+        $('#reset').click(resetKeystore);
+      });
+      
+      function encrypt(e) {
+        callServerScript(e).markAsSensitive();
+      }
+      function reveal(e) {
+        switch($('#reveal-mode').val())
+        {
+          case 'popup':
+            callServerScript(e).revealPopup();
+            break;
+          case 'minute':
+            callServerScript(e).revealFewSeconds();
+            break;
+          case 'lock':
+            callServerScript(e).revealUntilLock();
+            break;
+          case 'permanent':
+            callServerScript(e).removeEncryption();
+            break;
+        }
+      }
+      function generatePassword(e) {
+        callServerScript(e).genPass($('#length').val(), $('#chars').val());
+      }
+      function lockNow(e) {
+        callServerScript(e).lockSpreasheet('manual');
+      }
+      function openSettings(e) {
+        callServerScript(e).showSettings();
+      }
+      function changeMaster(e) {
+        callServerScript(e).changeMasterPassword();
+      }
+      function resetKeystore(e) {
+        callServerScript(e).resetSpreasheet();
+      }
+      
+      function callServerScript(e) {
+        var originalText = $(e.target).html();
+        $(e.target).html('Wait...');
+        $(e.target).prop('disabled', true);
+        return google.script.run
+          .withUserObject({'element': e.target, 'text': originalText })
+          .withSuccessHandler(function (result, obj) { $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); })
+          .withFailureHandler(showError)
+      }
+      
+      
+      function showError(msg, element) {
+        alert(msg);
+      }
+    </script>
+  </body>
+</html>
+
+
