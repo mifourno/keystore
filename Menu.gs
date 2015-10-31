@@ -34,12 +34,12 @@ function onOpen()  { try  //for logging
   initializeProperties(true);
   updateMenuEntries();
   lockSpreasheet('onOpen');
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 function onEdit(event) { try  //for logging
 {
   setP_LastUpdate(new Date());
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 //##################################
@@ -52,7 +52,7 @@ function showSettings() { try  //for logging
       .setTitle(getP_ProgramName() + ' settings')
       .setSandboxMode(HtmlService.SandboxMode.IFRAME);
   SpreadsheetApp.getUi().showSidebar(ui);
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 function showSideMenu() { try  //for logging
 {
@@ -60,7 +60,7 @@ function showSideMenu() { try  //for logging
       .setTitle(getP_ProgramName())
       .setSandboxMode(HtmlService.SandboxMode.IFRAME);
   SpreadsheetApp.getUi().showSidebar(ui);
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 
@@ -76,7 +76,7 @@ function genPassSubMenu(length)  { try  //for logging
                                 .addItem('AlphaNum - Abc123', 'genPassAlphaNum' + length)
                                 .addItem('Alpha - Abc', 'genPassAlpha' + length)
                                 .addItem('Numerical - 123', 'genPassNum' + length)
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 function updateMenuEntries()  { try  //for logging
 {
@@ -116,5 +116,5 @@ function updateMenuEntries()  { try  //for logging
   myMenu.addItem('☠ Reset this spreadsheet', 'resetSpreasheet');
   myMenu.addToUi();
   
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
