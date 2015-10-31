@@ -42,6 +42,11 @@ function isLocked()  { try  //for logging
   return isNullOrWS(pek);
 } catch(e) { logError(e); throw(e); } } //for logging
 
+function serverSideAlert(title, msg) {  try  //for logging
+{
+  var ui = SpreadsheetApp.getUi();
+  ui.alert(title, msg, ui.ButtonSet.OK);
+} catch(e) { logError(e); throw(e); } } //for logging
 
 function tryRemoveAllTriggers() { try  //for logging
 {
@@ -64,6 +69,7 @@ function embrace(value)  { try  //for logging
 function logError(ex)
 {
   log("Error", ex.fileName + ', line ' + ex.lineNumber + ': ' +  ex.message, ex.stack);
+  SpreadsheetApp.getActiveSpreadsheet().toast('An error occured: ' + ex.message);
 }
 function log(type, message, details)
 {
