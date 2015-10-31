@@ -19,6 +19,11 @@ DEPENDENCIES:
     => CryptoJS_aes.gs
 ---------------------------------------------------------- */
 
+/**
+ * @OnlyCurrentDoc
+ */
+
+
 function isNullOrWS(value) { try  //for logging
 {
   return (value === 'undefined' || value == null || value == '' || typeof value === 'string' && value.trim() == '')
@@ -115,7 +120,7 @@ function genNewPassword(length, mode) {  try  //for logging
   else if (mode == 2) charset = getP_GenPassAlpha();
   else charset = getP_GenPassNum() + getP_GenPassAlpha();
   if (mode > 3) charset += getP_GenPassSymbols();
-  if (mode > 4) charset += getP_GenPassPuntuations();
+  if (mode > 4) charset += getP_GenPassPunctuations();
   var retVal = '';
   for (var i = 0, n = charset.length; i < length; ++i) retVal += charset.charAt(Math.floor(Math.random() * n));
   return retVal;
