@@ -66,8 +66,13 @@
       
     </div>
     
+    
+    
     <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
     <script>
+    
+      var dirtyPreferences = false;
+      
       $(function() {
         $('#reveal').click(reveal);
         $('#encrypt').click(encrypt);
@@ -76,6 +81,12 @@
         $('#settings').click(openSettings);
         $('#change-master').click(changeMaster);
         $('#reset').click(resetKeystore);
+        
+        $('#length').change(function() { dirtyPreferences = true; });
+        $('#chars').change(function() { dirtyPreferences = true; });
+        $('#reveal-mode').change(function() { dirtyPreferences = true; });
+        
+        google.script.run.withSuccessHandler(loadPreferences).getPreferences();
       });
       
       function encrypt(e) {
@@ -85,21 +96,21 @@
         switch($('#reveal-mode').val())
         {
           case 'popup':
-            callServerScript(e).revealPopup();
+            callServerScript(e, true).revealPopup();
             break;
           case 'minute':
-            callServerScript(e).revealFewSeconds();
+            callServerScript(e, true).revealFewSeconds();
             break;
           case 'lock':
-            callServerScript(e).revealUntilLock();
+            callServerScript(e, true).revealUntilLock();
             break;
           case 'permanent':
-            callServerScript(e).removeEncryption();
+            callServerScript(e, true).removeEncryption();
             break;
         }
       }
       function generatePassword(e) {
-        callServerScript(e).genPass($('#length').val(), $('#chars').val());
+        callServerScript(e, true).genPass($('#length').val(), $('#chars').val());
       }
       function lockNow(e) {
         callServerScript(e).lockSpreasheet('manual');
@@ -114,6 +125,28 @@
         callServerScript(e).resetSpreasheet();
       }
       
+      
+      function loadPreferences(preferences) {
+        $('#length').val(preferences.passwordLength);
+        $('#chars').val(preferences.passwordChars);
+        $('#reveal-mode').val(preferences.revealMode);
+        dirtyPreferences = false;
+      }
+      
+      function readPreferences(preferences) {
+        return {
+          passwordLength: $('#length').val(),
+          passwordChars: $('#chars').val(),
+          revealMode: $('#reveal-mode').val()
+        };
+      }
+      
+      function savePreferences() {
+        if (dirtyPreferences) {
+          google.script.run.savePreferences(readPreferences());
+        }
+      }
+      
       function callServerScript(e) {
         var originalText = $(e.target).html();
         $(e.target).html('Wait...');
@@ -121,13 +154,20 @@
         return google.script.run
           .withUserObject({'element': e.target, 'text': originalText })
           .withSuccessHandler(function (result, obj) { $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); })
-          .withFailureHandler(showError)
+          .withFailureHandler(function (msg, obj) { $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); });
       }
       
+//      function showError(err, completeFunction) {
+//        if (completeFunction != null) {
+//          google.script.run
+//            .withSuccessHandler(completeFunction)
+//            .withFailureHandler(completeFunction)
+//            .serverSideAlert('Error', err.message);
+//        } else {
+//          google.script.run.serverSideAlert('Error', err.message);
+//        }
+//      }
       
-      function showError(msg, element) {
-        alert(msg);
-      }
     </script>
   </body>
 </html>
