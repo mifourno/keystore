@@ -27,26 +27,26 @@ DEPENDENCIES:
 function isNullOrWS(value) { try  //for logging
 {
   return (value === 'undefined' || value == null || value == '' || typeof value === 'string' && value.trim() == '')
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function isRangeCrypted(range) { try  //for logging
 {
   return range.getFontLine() == 'line-through';
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function isLocked()  { try  //for logging
 {
   var pek = getP_PEK();
   return isNullOrWS(pek);
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 function serverSideAlert(title, msg) {  try  //for logging
 {
   var ui = SpreadsheetApp.getUi();
   ui.alert(title, msg, ui.ButtonSet.OK);
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 function tryRemoveAllTriggers() { try  //for logging
 {
@@ -55,18 +55,18 @@ function tryRemoveAllTriggers() { try  //for logging
     var triggers = ScriptApp.getProjectTriggers();
     for (i=0; i<triggers.length; i++) ScriptApp.deleteTrigger(triggers[i]);
   } catch (ex) {  }
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 function embrace(value)  { try  //for logging
 {
   return '[' + value + ']';
-} catch(e) { logError(e); throw(e); } } //for loggin
+} catch(e) { handleError(e); } } //for logging
 
 
 //############################
 //##        LOGGING
 //############################
-function logError(ex)
+function handleError(ex)
 {
   log("Error", ex.fileName + ', line ' + ex.lineNumber + ': ' +  ex.message, ex.stack);
   SpreadsheetApp.getActiveSpreadsheet().toast('An error occured: ' + ex.message);
@@ -92,7 +92,7 @@ function emptyLogs() {  try  //for logging
     var logsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Logs');
     if (logsSheet != null) logsSheet.getRange('A2:D10000').clearContent();
   }
-} catch(e) { logError(e); throw(e); } } //for loggin
+} catch(e) { handleError(e); } } //for logging
 
 //############################
 //##    GENERATE PASSWORD
@@ -112,7 +112,7 @@ function genPass(length, mode) {  try  //for logging
       sheet.getRange(j,i).setNumberFormat('@STRING@').setValue(genNewPassword(length, mode));
     }
   }
-} catch(e) { logError(e); throw(e); } } //for loggin
+} catch(e) { handleError(e); } } //for logging
 
 function genNewPassword(length, mode) {  try  //for logging
 {
@@ -130,7 +130,7 @@ function genNewPassword(length, mode) {  try  //for logging
   var retVal = '';
   for (var i = 0, n = charset.length; i < length; ++i) retVal += charset.charAt(Math.floor(Math.random() * n));
   return retVal;
-} catch(e) { logError(e); throw(e); } } //for loggin
+} catch(e) { handleError(e); } } //for logging
 
 function genPassNum256(value) { genPass(256, 1); }
 function genPassNum128(value) { genPass(128, 1); }
