@@ -44,7 +44,7 @@ function assertUnlocked(message, requirePassword)  { try  //for logging
     }
   }
   return false;
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 function unlockSpreasheet(masterPassword) { try  //for logging
 {
@@ -57,13 +57,13 @@ function unlockSpreasheet(masterPassword) { try  //for logging
   startAutoLockTrigger();
   return true;
   
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function manualLockSpreasheet(source) { try  //for logging
 {
   lockSpreasheet('manual');
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function lockSpreasheet(source) { try  //for logging
@@ -73,7 +73,7 @@ function lockSpreasheet(source) { try  //for logging
   setP_PEK('');
   setP_LockedAt(new Date());
   tryRemoveAllTriggers();
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 //##################################
@@ -92,7 +92,7 @@ function changeMasterPassword() { try  //for logging
     var ui = SpreadsheetApp.getUi();
     ui.alert('Success !', 'Your master-password has been changed successfully', ui.ButtonSet.OK);
   }
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function resetSpreasheet() { try  //for logging
@@ -116,7 +116,7 @@ function resetSpreasheet() { try  //for logging
       unlockSpreasheet(newPassword);
     };
   }   
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function askForNewMasterPassword() { try  //for logging
@@ -136,7 +136,7 @@ function askForNewMasterPassword() { try  //for logging
     return null;
   }
   return null;
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function confirmMasterPassword(password, message) { try  //for logging
@@ -156,7 +156,7 @@ function confirmMasterPassword(password, message) { try  //for logging
     return null;
   }
   return null;
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function generateEncryptionKey() { try  //for logging
@@ -169,7 +169,7 @@ function generateEncryptionKey() { try  //for logging
     randomstring += chars.substring(rnum,rnum+1);
   }
   return randomstring;
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 //##################################
@@ -185,7 +185,7 @@ function checkAutolock()  { try  //for logging
     lockSpreasheet('auto');
     SpreadsheetApp.getActiveSpreadsheet().toast('Keystore is locked', 'Autolock !');
   }
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 function startAutoLockTrigger()  { try  //for logging
 {
@@ -194,4 +194,4 @@ function startAutoLockTrigger()  { try  //for logging
     var delay = Math.ceil(Math.max(autolockDelay / 10, 1));
     ScriptApp.newTrigger("checkAutolock").timeBased().everyMinutes(delay).create();
   }
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
