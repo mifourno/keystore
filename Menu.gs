@@ -19,6 +19,12 @@ DEPENDENCIES:
     => CryptoJS_aes.gs
 ---------------------------------------------------------- */
 
+/**
+ * @OnlyCurrentDoc
+ */
+
+
+
 //##################################
 //##        SHEET EVENTS
 //##################################
@@ -37,60 +43,30 @@ function onEdit(event) { try  //for logging
 
 
 //##################################
-//##        SHOW/HIDE SHEETS
+//##        SHOW/HIDE SIDE BARS
 //##################################
 
-//function hideSheet(name) { try  //for logging
-//{
-//  SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name).hideSheet();
-//  setProperty('Sheet' + name + 'Visible', false);
-//  updateMenuEntries();
-//} catch(e) { logError(e); throw(e); } } //for logging
-//
-//function showSheet(name) { try  //for logging
-//{
-//  SpreadsheetApp.getActiveSpreadsheet().getSheetByName(name).activate();
-//  setProperty('Sheet' + name + 'Visible', true);
-//  updateMenuEntries();
-//} catch(e) { logError(e); throw(e); } } //for logging
-//
-//function hideHelp() { try  //for logging
-//{
-//  hideSheet('Help');
-//} catch(e) { logError(e); throw(e); } } //for logging
-//
-//function showHelp() { try  //for logging
-//{
-//  showSheet('Help');
-//} catch(e) { logError(e); throw(e); } } //for logging
-//
-//function hideSettings() { try  //for logging
-//{
-//  hideSheet('Settings');
-//} catch(e) { logError(e); throw(e); } } //for logging
-//
-//function showSettings() { try  //for logging
-//{
-//  showSheet('Settings');
-//} catch(e) { logError(e); throw(e); } } //for logging
-//
-//function hideLogs() { try  //for logging
-//{
-//  hideSheet('Logs');
-//} catch(e) { logError(e); throw(e); } } //for logging
-//
-//function showLogs() { try  //for logging
-//{
-//  showSheet('Logs');
-//} catch(e) { logError(e); throw(e); } } //for logging
+function showSettings() { try  //for logging
+{
+  var ui = HtmlService.createHtmlOutputFromFile('Settings')
+      .setTitle(getP_ProgramName() + ' settings')
+      .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+  SpreadsheetApp.getUi().showSidebar(ui);
+} catch(e) { logError(e); throw(e); } } //for logging
+
+function showSideMenu() { try  //for logging
+{
+  var ui = HtmlService.createHtmlOutputFromFile('SideMenu')
+      .setTitle(getP_ProgramName())
+      .setSandboxMode(HtmlService.SandboxMode.IFRAME);
+  SpreadsheetApp.getUi().showSidebar(ui);
+} catch(e) { logError(e); throw(e); } } //for logging
 
 
 
 //##################################
 //##        INITIALIZATION
 //##################################
-
-
 
 function genPassSubMenu(length)  { try  //for logging
 {
@@ -106,7 +82,7 @@ function updateMenuEntries()  { try  //for logging
 {
   var myMenu = SpreadsheetApp.getUi().createMenu(getP_ProgramName());
   
-  myMenu.addItem('♜ Lock immediately', 'manualLockSpreasheet');
+  myMenu.addItem('♜ Lock now', 'manualLockSpreasheet');
   myMenu.addItem('♺ Change master-password', 'changeMasterPassword');
   myMenu.addSeparator();
   
@@ -132,15 +108,11 @@ function updateMenuEntries()  { try  //for logging
                     .addSubMenu(genPassSubMenu(128))
                     .addSubMenu(genPassSubMenu(64)));
   myMenu.addSeparator();
-  
-//  if (getProperty('Sheet' + 'Help' + 'Visible') == 'true') myMenu.addItem('✖ Hide Help', 'hideHelp');
-//  else myMenu.addItem('� Help', 'showHelp');
-//  if (getProperty('Sheet' + 'Settings' + 'Visible') == 'true') myMenu.addItem('✖ Hide Settings', 'hideSettings');
-//  else myMenu.addItem('⚙ Settings', 'showSettings');
-//  if (getProperty('Sheet' + 'Logs' + 'Visible') == 'true') myMenu.addItem('✖ Hide Logs', 'hideLogs');
-//  else myMenu.addItem('✎ Logs (advanced)', 'showLogs');
-//  myMenu.addSeparator();
-  
+
+  myMenu.addItem('≣ Show side menu', 'showSideMenu');
+  myMenu.addItem('⚙ Settings', 'showSettings');
+  myMenu.addSeparator();
+    
   myMenu.addItem('☠ Reset this spreadsheet', 'resetSpreasheet');
   myMenu.addToUi();
   
