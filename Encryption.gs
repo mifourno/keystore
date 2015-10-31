@@ -56,7 +56,7 @@ function markAsSensitive() { try  //for logging
   
   if (rangeCounter == 0) SpreadsheetApp.getActiveSpreadsheet().toast('No data to encrypt within this range selection');
   
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function markAsSensitive_SingleCell(sheet, row, col, pek, protectionMessage, setFormatAtEncryption, background, color) { try //for logging
@@ -78,28 +78,28 @@ function markAsSensitive_SingleCell(sheet, row, col, pek, protectionMessage, set
   }
   
   return true;
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function revealFewSeconds() { try  //for logging
 {
   reveal('fewSeconds');
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 function revealUntilLock() { try  //for logging
 {
   reveal('untilLock');
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 function removeEncryption() { try  //for logging
 {
   reveal('permanent');
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 function revealPopup() { try  //for logging
 {
   reveal('popup');
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 // mode: permanent|fewSeconds|untilLock|popup
@@ -152,7 +152,7 @@ function reveal(mode) { try  //for logging
     if (mode == 'fewSeconds') ScriptApp.newTrigger("autoReencryptRevealedRange").timeBased().after(60000).create();
   }
   if (rangeCounter == 0) SpreadsheetApp.getUi().alert('No encrypted cell found within this range selection');
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 /*function justAlert() { try  //for logging
@@ -161,7 +161,7 @@ function reveal(mode) { try  //for logging
   var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
   var sheet = spreadsheet.getSheetByName('Data');
   sheet.getRange("A1").setValue(new Date());
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 */
 
 
@@ -169,7 +169,7 @@ function autoReencryptRevealedRange() { try  //for logging
 {
   log('Diagnostic', 'Auto reencrypt revealed range');
   reencryptRevealedRange();
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function reencryptRevealedRange() { try  //for logging
@@ -186,7 +186,7 @@ function reencryptRevealedRange() { try  //for logging
       }
     }
   }
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function removeProtection(range) { try  //for logging
@@ -195,7 +195,7 @@ function removeProtection(range) { try  //for logging
   for (var j = 0; j < protections.length; j++) {
     if (protections[j].getRange().getA1Notation() == range.getA1Notation()) protections[j].remove();
   }
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function syncLineThroughAndProtection()  { try  //for logging
@@ -205,7 +205,7 @@ function syncLineThroughAndProtection()  { try  //for logging
   for (var j = 0; j < allSheets.length; j++) {
     syncLineThroughAndProtectionOnSheet(allSheets[j]);
   }
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function syncLineThroughAndProtectionOnSheet(sheet) { try  //for logging
@@ -231,4 +231,4 @@ function syncLineThroughAndProtectionOnSheet(sheet) { try  //for logging
     var ui = SpreadsheetApp.getUi();
     ui.alert('Oops: dirty range !', 'The following cells should be encrypted, but font is not striked out. Please review and either encrypt them or simply set the font strike out to fix the problem\n\n' + 'Sheet "' + sheet.getName() + '": ' + dirtyRange, ui.ButtonSet.OK);
   }
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
