@@ -37,6 +37,15 @@ function setP_LastUpdate(value) { PropertiesService.getUserProperties().setPrope
 function getP_LockedAt() { return PropertiesService.getUserProperties().getProperty('LockedAt'); }
 function setP_LockedAt(value) { PropertiesService.getUserProperties().setProperty('LockedAt', value); }
 
+function getP_PasswordLength() { return PropertiesService.getUserProperties().getProperty('PasswordLength'); }
+function setP_PasswordLength(value) { PropertiesService.getUserProperties().setProperty('PasswordLength', value); }
+
+function getP_PasswordChars() { return PropertiesService.getUserProperties().getProperty('PasswordChars'); }
+function setP_PasswordChars(value) { PropertiesService.getUserProperties().setProperty('PasswordChars', value); }
+
+function getP_RevealMode() { return PropertiesService.getUserProperties().getProperty('RevealMode'); }
+function setP_RevealMode(value) { PropertiesService.getUserProperties().setProperty('RevealMode', value); }
+
 // ################ Script Properties #################
 function getP_ProgramName() { return PropertiesService.getScriptProperties().getProperty('ProgramName'); }
 function setP_ProgramName(value) { PropertiesService.getScriptProperties().setProperty('ProgramName', value); }
@@ -96,6 +105,9 @@ function initializeProperties(onlyIfNotExist)  { try  //for logging
   initializePropertyIfNotExist(userProperties, 'EEK', '', onlyIfNotExist);
   initializePropertyIfNotExist(userProperties, 'LastUpdate', new Date(), onlyIfNotExist);
   initializePropertyIfNotExist(userProperties, 'LockedAt', new Date(), onlyIfNotExist);
+  initializePropertyIfNotExist(userProperties, 'PasswordLength', '20', onlyIfNotExist);
+  initializePropertyIfNotExist(userProperties, 'PasswordChars', '4', onlyIfNotExist);
+  initializePropertyIfNotExist(userProperties, 'RevealMode', 'symbols', onlyIfNotExist);
   
   // Script Properties
   initializePropertyIfNotExist(scriptProperties, 'ProgramName', 'Keystore', onlyIfNotExist);
@@ -110,12 +122,12 @@ function initializeProperties(onlyIfNotExist)  { try  //for logging
   initializePropertyIfNotExist(documentProperties, 'GenPassAlpha', defautSettings.genPassAlpha, onlyIfNotExist);
   initializePropertyIfNotExist(documentProperties, 'GenPassNum', defautSettings.genPassNum);
   
-  initializePropertyIfNotExist(documentProperties, 'EF_BG', '#f4cccc', onlyIfNotExist);
-  initializePropertyIfNotExist(documentProperties, 'EF_COL', '#990000', onlyIfNotExist);
-  initializePropertyIfNotExist(documentProperties, 'RF_BG', '#fce5cd', onlyIfNotExist);
-  initializePropertyIfNotExist(documentProperties, 'RF_COL', '#b45f06', onlyIfNotExist);
-  initializePropertyIfNotExist(documentProperties, 'DF_BG', '#d9ead3', onlyIfNotExist);
-  initializePropertyIfNotExist(documentProperties, 'DF_COL', '#38761d', onlyIfNotExist);
+  initializePropertyIfNotExist(documentProperties, 'EF_BG', defautSettings.EF_BG, onlyIfNotExist);
+  initializePropertyIfNotExist(documentProperties, 'EF_COL', defautSettings.EF_COL, onlyIfNotExist);
+  initializePropertyIfNotExist(documentProperties, 'RF_BG', defautSettings.RF_BG, onlyIfNotExist);
+  initializePropertyIfNotExist(documentProperties, 'RF_COL', defautSettings.RF_COL, onlyIfNotExist);
+  initializePropertyIfNotExist(documentProperties, 'DF_BG', defautSettings.DF_BG, onlyIfNotExist);
+  initializePropertyIfNotExist(documentProperties, 'DF_COL', defautSettings.DF_COL, onlyIfNotExist);
   
   syncLineThroughAndProtection();
   
@@ -161,7 +173,6 @@ function saveSettings(settings)  { try  //for logging
   setP_GenPassSymbols(settings.genPassSymbols);
   setP_GenPassAlpha(settings.genPassAlpha);
   setP_GenPassNum(settings.genPassNum);
-  
 } catch(e) { logError(e); throw(e); } } //for logging
 
 
@@ -182,5 +193,25 @@ function getDefaultSettings()  { try  //for logging
     genPassNum: '0123456789'
   };
   return settings;
+} catch(e) { logError(e); throw(e); } } //for logging
+
+
+
+
+function getPreferences()  { try  //for logging
+{
+  var settings = {
+    passwordLength: getP_PasswordLength(),
+    passwordChars: getP_PasswordChars(),
+    revealMode: getP_RevealMode()
+  };
+  return settings;
+} catch(e) { logError(e); throw(e); } } //for logging
+
+function savePreferences(preferences)  { try  //for logging
+{
+  setP_PasswordLength(preferences.passwordLength);
+  setP_PasswordChars(preferences.passwordChars);
+  setP_RevealMode(preferences.revealMode);
 } catch(e) { logError(e); throw(e); } } //for logging
 
