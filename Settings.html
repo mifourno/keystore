@@ -70,6 +70,7 @@
   
   <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
   <script>
+  
       $(function() {
         $('#save-settings').click(saveSettings);
         $('#close-settings').click(closeSettings);
@@ -81,7 +82,7 @@
         $('#RC').change(refreshColors);
         $('#DB').change(refreshColors);
         $('#DC').change(refreshColors);
-        google.script.run.withSuccessHandler(loadSettings).withFailureHandler(showError).getSettings();
+        google.script.run.withSuccessHandler(loadSettings).getSettings();
       });
       
       function loadSettings(settings) {
@@ -102,12 +103,11 @@
         $('#numerical').val(settings.genPassNum);
       }
       function loadDefault() {
-        google.script.run.withSuccessHandler(loadSettings).withFailureHandler(showError).getDefaultSettings();
-        return false;
+        google.script.run.withSuccessHandler(loadSettings).getDefaultSettings();
       }
       
       function readSettings(settings) {
-        var settings = {
+        return {
           autolockDelay: $('#autolock').val(),
           EF_BG: $('#EB').val(),
           EF_COL: $('#EC').val(),
@@ -121,7 +121,6 @@
           genPassAlpha: $('#alpha').val(),
           genPassNum: $('#numerical').val()
         };
-        return settings;
       }
       
       function refreshColors() {
@@ -136,24 +135,23 @@
         $('#DS').css({ 'background-color' : $('#DB').val(), 'color' : $('#DC').val() });
       }
      
-      function saveSettings() {
-        $('#save-settings').prop('disabled', true);
-        $('#save-settings').html('Wait...');
-        var settings = readSettings();
-        google.script.run
-            .withSuccessHandler(closeSettings)
-            .withFailureHandler(showError)
-            .saveSettings(settings);
+      function saveSettings(e) {
+        callServerScript(e).saveSettings(readSettings());
+//        $('#save-settings').prop('disabled', true);
+//        $('#save-settings').html('Wait...');
+//        var settings = readSettings();
+//        google.script.run
+//            .withSuccessHandler(closeSettings)
+//            //.withFailureHandler(showError)
+//            .saveSettings(settings);
       }
       
-      function lockNow() {
+      function lockNow(e) {
         callServerScript(e).lockSpreasheet('manual');
       }
       
       function closeSettings() {
-        google.script.run
-            .withFailureHandler(showError)
-            .showSideMenu();
+        google.script.run.showSideMenu();
       }
       
       function callServerScript(e) {
@@ -163,12 +161,19 @@
         return google.script.run
           .withUserObject({'element': e.target, 'text': originalText })
           .withSuccessHandler(function (result, obj) { $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); })
-          .withFailureHandler(showError)
+          .withFailureHandler(function (msg, obj) { $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); });
       }
       
-      function showError(msg, element) {
-        alert(msg);
-      }
+//      function showError(err, completeFunction) {
+//        if (completeFunction != null) {
+//          google.script.run
+//            .withSuccessHandler(completeFunction)
+//            .withFailureHandler(completeFunction)
+//            .serverSideAlert('Error', err.message);
+//        } else {
+//          google.script.run.serverSideAlert('Error', err.message);
+//        }
+//      }
       
   </script>
   
