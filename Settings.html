@@ -1,0 +1,178 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+    <style>
+      input.color { width: 60px; }
+      td.chars { text-align: right; }
+      td.chars input { width: 170px; }
+      table, tr, td { width: 100%; margin: 0px; padding: 0px; border: none; }
+      td { padding: 2px 0px; }
+      h1 { font-weight: bold; }
+      .color-sample { font-weight: bold; margin-top: 10px; margin-bottom: 3px  }
+      .color-sample span { padding: 4px }
+      button { margin: 8px 0px; }
+    </style>
+  </head>
+  <body>
+  
+  <div class="sidebar branding-below">
+  
+    <h1>Security settings</h1>
+    <div class="inline form-group">
+      <label for="select">Autolock after</label>
+      <select id="autolock">
+        <option value="3">3 min</option>
+        <option value="5">5 min</option>
+        <option value="8">8 min</option>
+        <option value="15">15 min</option>
+        <option value="30">30 min</option>
+        <option value="60">60 min</option>
+      </select>
+    </div>
+    <a id="lock-now">Lock now</a>
+  
+  
+    <h1>Cells format settings</h1>
+    <input type="checkbox" id="applyFormat" checked>
+    <label for="applyFormat">Apply format after encryption</label>
+  
+    <div class="color-sample">Encrypted cells - <span id="ES" style="text-decoration: line-through;">Sample text</span></div>
+    <div>
+      Background <input type="text" id="EB" class="color">
+      Font color <input type="text" id="EC" class="color">
+      </div>
+    <div class="color-sample">Revealed cells - <span id="RS">Sample text</span></div>
+    <div>
+      Background <input type="text" id="RB" class="color">
+      Font color <input type="text" id="RC" class="color">
+    </div>
+    <div class="color-sample">Permanently revealed cells - <span id="DS">Sample text</span></div>
+    <div>
+      Background <input type="text" id="DB" class="color">
+      Font color <input type="text" id="DC" class="color">
+    </div>
+  
+    <h1>Generate password settings</h1>
+    <table>  
+      <tr><td>Punctuations</td><td class="chars"><input type="text" id="punctuations"></td></tr>
+      <tr><td>Symbols</td><td class="chars"><input type="text" id="symbols"></td></tr>
+      <tr><td>Alpha</td><td class="chars"><input type="text" id="alpha"></td></tr>
+      <tr><td>Numerical</td><td class="chars"><input type="text" id="numerical"></td></tr>
+    </table>
+  
+    <button class="action" id="save-settings">Save</button>
+    <button id="close-settings">Close</button>
+    <a id="default">Default values</a>
+  
+  </div>  
+  
+  <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+  <script>
+      $(function() {
+        $('#save-settings').click(saveSettings);
+        $('#close-settings').click(closeSettings);
+        $('#default').click(loadDefault);
+        $('#lock-now').click(lockNow);
+        $('#EB').change(refreshColors);
+        $('#EC').change(refreshColors);
+        $('#RB').change(refreshColors);
+        $('#RC').change(refreshColors);
+        $('#DB').change(refreshColors);
+        $('#DC').change(refreshColors);
+        google.script.run.withSuccessHandler(loadSettings).withFailureHandler(showError).getSettings();
+      });
+      
+      function loadSettings(settings) {
+        $('#autolock').val(settings.autolockDelay);
+        $('#applyFormat').prop('checked', settings.setFormatAtEncryption);
+        $('#EB').val(settings.EF_BG).css('background-color', settings.EF_BG);
+        $('#EC').val(settings.EF_COL).css('background-color', settings.EF_COL);
+        $('#ES').css({ 'background-color' : settings.EF_BG, 'color' : settings.EF_COL });
+        $('#RB').val(settings.RF_BG).css('background-color', settings.RF_BG);
+        $('#RC').val(settings.RF_COL).css('background-color', settings.RF_COL);
+        $('#RS').css({ 'background-color' : settings.RF_BG, 'color' : settings.RF_COL });
+        $('#DB').val(settings.DF_BG).css('background-color', settings.DF_BG);
+        $('#DC').val(settings.DF_COL).css('background-color', settings.DF_COL);
+        $('#DS').css({ 'background-color' : settings.DF_BG, 'color' : settings.DF_COL });
+        $('#punctuations').val(settings.genPassPunctuations);
+        $('#symbols').val(settings.genPassSymbols);
+        $('#alpha').val(settings.genPassAlpha);
+        $('#numerical').val(settings.genPassNum);
+      }
+      function loadDefault() {
+        google.script.run.withSuccessHandler(loadSettings).withFailureHandler(showError).getDefaultSettings();
+        return false;
+      }
+      
+      function readSettings(settings) {
+        var settings = {
+          autolockDelay: $('#autolock').val(),
+          EF_BG: $('#EB').val(),
+          EF_COL: $('#EC').val(),
+          RF_BG: $('#RB').val(),
+          RF_COL: $('#RC').val(),
+          DF_BG: $('#DB').val(),
+          DF_COL: $('#DC').val(),
+          setFormatAtEncryption : $('#applyFormat').prop('checked'),
+          genPassPunctuations: $('#punctuations').val(),
+          genPassSymbols: $('#symbols').val(),
+          genPassAlpha: $('#alpha').val(),
+          genPassNum: $('#numerical').val()
+        };
+        return settings;
+      }
+      
+      function refreshColors() {
+        $('#EB').css('background-color', $('#EB').val());
+        $('#EC').css('background-color', $('#EC').val());
+        $('#ES').css({ 'background-color' : $('#EB').val(), 'color' : $('#EC').val() });
+        $('#RB').css('background-color', $('#RB').val());
+        $('#RC').css('background-color', $('#RC').val());
+        $('#RS').css({ 'background-color' : $('#RB').val(), 'color' : $('#RC').val() });
+        $('#DB').css('background-color', $('#DB').val());
+        $('#DC').css('background-color', $('#DC').val());
+        $('#DS').css({ 'background-color' : $('#DB').val(), 'color' : $('#DC').val() });
+      }
+     
+      function saveSettings() {
+        $('#save-settings').prop('disabled', true);
+        $('#save-settings').html('Wait...');
+        var settings = readSettings();
+        google.script.run
+            .withSuccessHandler(closeSettings)
+            .withFailureHandler(showError)
+            .saveSettings(settings);
+      }
+      
+      function lockNow() {
+        callServerScript(e).lockSpreasheet('manual');
+      }
+      
+      function closeSettings() {
+        google.script.run
+            .withFailureHandler(showError)
+            .showSideMenu();
+      }
+      
+      function callServerScript(e) {
+        var originalText = $(e.target).html();
+        $(e.target).html('Wait...');
+        $(e.target).prop('disabled', true);
+        return google.script.run
+          .withUserObject({'element': e.target, 'text': originalText })
+          .withSuccessHandler(function (result, obj) { $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); })
+          .withFailureHandler(showError)
+      }
+      
+      function showError(msg, element) {
+        alert(msg);
+      }
+      
+  </script>
+  
+  </body>
+</html>
+
+
