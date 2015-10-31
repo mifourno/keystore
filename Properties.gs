@@ -196,8 +196,6 @@ function getDefaultSettings()  { try  //for logging
 } catch(e) { logError(e); throw(e); } } //for logging
 
 
-
-
 function getPreferences()  { try  //for logging
 {
   var settings = {
