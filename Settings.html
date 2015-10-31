@@ -136,14 +136,7 @@
       }
      
       function saveSettings(e) {
-        callServerScript(e).saveSettings(readSettings());
-//        $('#save-settings').prop('disabled', true);
-//        $('#save-settings').html('Wait...');
-//        var settings = readSettings();
-//        google.script.run
-//            .withSuccessHandler(closeSettings)
-//            //.withFailureHandler(showError)
-//            .saveSettings(settings);
+        callServerScript(e, closeSettings).saveSettings(readSettings());
       }
       
       function lockNow(e) {
@@ -154,26 +147,16 @@
         google.script.run.showSideMenu();
       }
       
-      function callServerScript(e) {
+      function callServerScript(e, onSuccessFunction, onFailureFunction) {
         var originalText = $(e.target).html();
         $(e.target).html('Wait...');
         $(e.target).prop('disabled', true);
         return google.script.run
           .withUserObject({'element': e.target, 'text': originalText })
-          .withSuccessHandler(function (result, obj) { $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); })
-          .withFailureHandler(function (msg, obj) { $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); });
+          .withSuccessHandler(function (result, obj) { if (onSuccessFunction) onSuccessFunction(); $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); })
+          .withFailureHandler(function (msg, obj) { if (onFailureFunction) onFailureFunction(); $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); });
       }
-      
-//      function showError(err, completeFunction) {
-//        if (completeFunction != null) {
-//          google.script.run
-//            .withSuccessHandler(completeFunction)
-//            .withFailureHandler(completeFunction)
-//            .serverSideAlert('Error', err.message);
-//        } else {
-//          google.script.run.serverSideAlert('Error', err.message);
-//        }
-//      }
+
       
   </script>
   
