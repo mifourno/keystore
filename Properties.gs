@@ -131,14 +131,14 @@ function initializeProperties(onlyIfNotExist)  { try  //for logging
   
   syncLineThroughAndProtection();
   
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function initializePropertyIfNotExist(propertySet, name, value, onlyIfNotExist)  { try  //for logging
 {
   var propertyValue = propertySet.getProperty(name);
   if (!onlyIfNotExist || propertyValue === 'undefined' || propertyValue == null || propertyValue == '') propertySet.setProperty(name, value);
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 function getSettings()  { try  //for logging
 {
@@ -157,7 +157,7 @@ function getSettings()  { try  //for logging
     genPassNum: getP_GenPassNum()
   };
   return settings;
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 function saveSettings(settings)  { try  //for logging
 {
@@ -173,7 +173,7 @@ function saveSettings(settings)  { try  //for logging
   setP_GenPassSymbols(settings.genPassSymbols);
   setP_GenPassAlpha(settings.genPassAlpha);
   setP_GenPassNum(settings.genPassNum);
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function getDefaultSettings()  { try  //for logging
@@ -193,7 +193,7 @@ function getDefaultSettings()  { try  //for logging
     genPassNum: '0123456789'
   };
   return settings;
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 
 function getPreferences()  { try  //for logging
@@ -204,12 +204,12 @@ function getPreferences()  { try  //for logging
     revealMode: getP_RevealMode()
   };
   return settings;
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
 function savePreferences(preferences)  { try  //for logging
 {
   setP_PasswordLength(preferences.passwordLength);
   setP_PasswordChars(preferences.passwordChars);
   setP_RevealMode(preferences.revealMode);
-} catch(e) { logError(e); throw(e); } } //for logging
+} catch(e) { handleError(e); } } //for logging
 
