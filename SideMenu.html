@@ -96,21 +96,22 @@
         switch($('#reveal-mode').val())
         {
           case 'popup':
-            callServerScript(e, true).revealPopup();
+            callServerScript(e).revealPopup();
             break;
           case 'minute':
-            callServerScript(e, true).revealFewSeconds();
+            callServerScript(e).revealFewSeconds();
             break;
           case 'lock':
-            callServerScript(e, true).revealUntilLock();
+            callServerScript(e).revealUntilLock();
             break;
           case 'permanent':
-            callServerScript(e, true).removeEncryption();
+            callServerScript(e).removeEncryption();
             break;
         }
       }
       function generatePassword(e) {
-        callServerScript(e, true).genPass($('#length').val(), $('#chars').val());
+        savePreferences();
+        callServerScript(e).genPass($('#length').val(), $('#chars').val());
       }
       function lockNow(e) {
         callServerScript(e).lockSpreasheet('manual');
