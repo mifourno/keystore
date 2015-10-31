@@ -19,6 +19,10 @@ DEPENDENCIES:
     => CryptoJS_aes.gs
 ---------------------------------------------------------- */
 
+/**
+ * @OnlyCurrentDoc
+ */
+
 function markAsSensitive() { try  //for logging
 {
   if (!assertUnlocked()) return false;
@@ -27,7 +31,7 @@ function markAsSensitive() { try  //for logging
   var range = SpreadsheetApp.getActiveSheet().getActiveRange();
   var protectionMessage = getP_ProtectionMessage();
   var setFormatAtEncryption = getP_SetFormatAtEncryption();
-  var backGround = getP_EncryptedFormat_BackGround();
+  var background = getP_EncryptedFormat_Background();
   var color = getP_EncryptedFormat_Color();
   for (var i = range.getColumnIndex(); i <= range.getLastColumn(); ++i)
   {
@@ -36,7 +40,7 @@ function markAsSensitive() { try  //for logging
       if (isRangeCrypted(sheet.getRange(j,i)))
       {
         var ui = SpreadsheetApp.getUi(); // Same variations.
-        ui.alert('Encryption Aborted !', 'Some cells in selection are already encrypted ! Encryption Aborted !', ui.ButtonSet.OK);
+        ui.alert('Already encrypted !', 'Some cells in selection are already encrypted ! Encryption Aborted !', ui.ButtonSet.OK);
         return;
       }
     }
@@ -46,7 +50,7 @@ function markAsSensitive() { try  //for logging
   {
     for (var row = range.getRowIndex(); row <= range.getLastRow(); ++row) 
     {
-      if (markAsSensitive_SingleCell(sheet, row,col, pek, protectionMessage, setFormatAtEncryption, backGround, color)) rangeCounter++;
+      if (markAsSensitive_SingleCell(sheet, row,col, pek, protectionMessage, setFormatAtEncryption, background, color)) rangeCounter++;
     }
   }
   
@@ -55,7 +59,7 @@ function markAsSensitive() { try  //for logging
 } catch(e) { logError(e); throw(e); } } //for logging
 
 
-function markAsSensitive_SingleCell(sheet, row, col, pek, protectionMessage, setFormatAtEncryption, backGround, color) { try //for logging
+function markAsSensitive_SingleCell(sheet, row, col, pek, protectionMessage, setFormatAtEncryption, background, color) { try //for logging
 {
   var rangeToEncrypt = sheet.getRange(row,col);
   if (isNullOrWS(rangeToEncrypt.getValue())) return false;  
@@ -69,7 +73,7 @@ function markAsSensitive_SingleCell(sheet, row, col, pek, protectionMessage, set
   }
   if (!rangeFound) rangeToEncrypt.protect().setDescription(protectionMessage).setWarningOnly(true);
   if (setFormatAtEncryption) {
-    rangeToEncrypt.setBackground(backGround);
+    rangeToEncrypt.setBackground(background);
     rangeToEncrypt.setFontColor(color);
   }
   
@@ -132,12 +136,12 @@ function reveal(mode) { try  //for logging
           if (mode == 'permanent') {
             removeProtection(currentRange);
             if (getP_SetFormatAtEncryption()) {
-              currentRange.setBackground(getP_DecryptedFormat_BackGround());
+              currentRange.setBackground(getP_DecryptedFormat_Background());
               currentRange.setFontColor(getP_DecryptedFormat_Color());
             }
           } else {
             if (getP_SetFormatAtEncryption()) {
-              currentRange.setBackground(getP_RevealedFormat_BackGround());
+              currentRange.setBackground(getP_RevealedFormat_Background());
               currentRange.setFontColor(getP_RevealedFormat_Color());
             }
           }
@@ -209,7 +213,7 @@ function syncLineThroughAndProtectionOnSheet(sheet) { try  //for logging
   var pek = getP_PEK();
   var protectionMessage = getP_ProtectionMessage();
   var setFormatAtEncryption = getP_SetFormatAtEncryption();
-  var backGround = getP_EncryptedFormat_BackGround();
+  var background = getP_EncryptedFormat_Background();
   var color = getP_EncryptedFormat_Color();
   var protections = sheet.getProtections(SpreadsheetApp.ProtectionType.RANGE);
   var dirtyRange = '';
@@ -217,7 +221,7 @@ function syncLineThroughAndProtectionOnSheet(sheet) { try  //for logging
     if (protections[i].getDescription() == protectionMessage) {
       if (protections[i].getRange().isBlank()) protections[i].remove();
       else if (!isRangeCrypted(protections[i].getRange())) { 
-        if (!isNullOrWS(pek)) markAsSensitive_SingleCell(sheet, protections[i].getRange().getRow(), protections[i].getRange().getColumn(), pek, protectionMessage, setFormatAtEncryption, backGround, color);
+        if (!isNullOrWS(pek)) markAsSensitive_SingleCell(sheet, protections[i].getRange().getRow(), protections[i].getRange().getColumn(), pek, protectionMessage, setFormatAtEncryption, background, color);
         else dirtyRange += protections[i].getRange().getA1Notation() + ', ';
       }
     }
@@ -228,16 +232,3 @@ function syncLineThroughAndProtectionOnSheet(sheet) { try  //for logging
     ui.alert('Oops: dirty range !', 'The following cells should be encrypted, but font is not striked out. Please review and either encrypt them or simply set the font strike out to fix the problem\n\n' + 'Sheet "' + sheet.getName() + '": ' + dirtyRange, ui.ButtonSet.OK);
   }
 } catch(e) { logError(e); throw(e); } } //for logging
-
-/*function reveal_SingleCell(mode, range, pek) { try  //for logging
-{
-  range.setValue(decrypt(range.getValue(), pek));
-  range.setFontLine('none');
-  if (mode == 'permanent') {
-    syncLineThroughAndProtection();
-    if (getSetting('CopySensitivityFormat')) getSettingRange('UnmarkedDataFormat').copyTo(range, { formatOnly: true });
-  } else {
-    if (getSetting('CopySensitivityFormat')) getSettingRange('RevealedDataFormat').copyTo(range, { formatOnly: true });
-  }
-} catch(e) { logError(e); throw(e); } } //for logging
-*/
