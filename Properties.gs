@@ -54,6 +54,9 @@ function getP_ProtectionMessage() { return PropertiesService.getScriptProperties
 function setP_ProtectionMessage(value) { PropertiesService.getScriptProperties().setProperty('ProtectionMessage', value); }
 
 // ################ Document Properties #################
+function getP_IsKeystoreReady() { return PropertiesService.getDocumentProperties().getProperty('IsKeystoreReady'); }
+function setP_IsKeystoreReady(value) { PropertiesService.getDocumentProperties().setProperty('IsKeystoreReady', value); }
+
 function getP_RevealedRangeSheets() { return PropertiesService.getDocumentProperties().getProperty('RevealedRangeSheets'); }
 function setP_RevealedRangeSheets(value) { PropertiesService.getDocumentProperties().setProperty('RevealedRangeSheets', value); }
 
@@ -94,10 +97,17 @@ function getP_DecryptedFormat_Color() { return PropertiesService.getDocumentProp
 function setP_DecryptedFormat_Color(value) { PropertiesService.getDocumentProperties().setProperty('DF_COL', value); }
 
 
+function initializeScriptProperties(onlyIfNotExist)  { try  //for logging
+{
+  var scriptProperties = PropertiesService.getScriptProperties();
+  // Script Properties
+  initializePropertyIfNotExist(scriptProperties, 'ProgramName', 'Keystore', onlyIfNotExist);
+  initializePropertyIfNotExist(scriptProperties, 'ProtectionMessage', 'Marked as sensitive', onlyIfNotExist);
+} catch(e) { handleError(e); } } //for logging
+
 function initializeProperties(onlyIfNotExist)  { try  //for logging
 {
   var userProperties = PropertiesService.getUserProperties();
-  var scriptProperties = PropertiesService.getScriptProperties();
   var documentProperties = PropertiesService.getDocumentProperties();
   var defautSettings = getDefaultSettings();
   // User Properties
@@ -108,10 +118,6 @@ function initializeProperties(onlyIfNotExist)  { try  //for logging
   initializePropertyIfNotExist(userProperties, 'PasswordLength', '20', onlyIfNotExist);
   initializePropertyIfNotExist(userProperties, 'PasswordChars', '4', onlyIfNotExist);
   initializePropertyIfNotExist(userProperties, 'RevealMode', 'symbols', onlyIfNotExist);
-  
-  // Script Properties
-  initializePropertyIfNotExist(scriptProperties, 'ProgramName', 'Keystore', onlyIfNotExist);
-  initializePropertyIfNotExist(scriptProperties, 'ProtectionMessage', 'Marked as sensitive', onlyIfNotExist);
   
   // Document Properties
   initializePropertyIfNotExist(documentProperties, 'RevealedRangeSheets', '', onlyIfNotExist);
@@ -138,6 +144,13 @@ function initializePropertyIfNotExist(propertySet, name, value, onlyIfNotExist) 
 {
   var propertyValue = propertySet.getProperty(name);
   if (!onlyIfNotExist || propertyValue === 'undefined' || propertyValue == null || propertyValue == '') propertySet.setProperty(name, value);
+} catch(e) { handleError(e); } } //for logging
+
+function removeAllProperties()  { try  //for logging
+{
+  PropertiesService.getUserProperties().deleteAllProperties();
+  //PropertiesService.getScriptProperties().deleteAllProperties();
+  PropertiesService.getDocumentProperties().deleteAllProperties();
 } catch(e) { handleError(e); } } //for logging
 
 function getSettings()  { try  //for logging
