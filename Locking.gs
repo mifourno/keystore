@@ -23,28 +23,50 @@ DEPENDENCIES:
  * @OnlyCurrentDoc
  */
 
-
-function assertUnlocked(message, requirePassword)  { try  //for logging
+function isLocked()  { try  //for logging
 {
-  setP_LastUpdate(new Date());
   var pek = getP_PEK();
-  if (!requirePassword && !isNullOrWS(pek)) return true;
-  
-  if (isNullOrWS(message)) message = '';
-  var ui = SpreadsheetApp.getUi(); // Same variations.
-  var result = ui.prompt('Master Password', message + 'Please enter your master password:', ui.ButtonSet.OK_CANCEL);
-  // Process the user's response.
-  var button = result.getSelectedButton();
-  var input = result.getResponseText();
-  if (button == ui.Button.OK) {
-    if (!unlockSpreasheet(input)) {
-      return assertUnlocked('Invalid password !\n');
-    } else {
-      return true;
-    }
-  }
-  return false;
+  return isNullOrWS(pek);
 } catch(e) { handleError(e); } } //for logging
+
+
+function promptMasterPassword(mode, okHandlerName, cancelHandlerName, argsOkString, argsCancelString) { try  //for logging
+{
+  // Modes: assert, init, change
+  if (isNullOrWS(mode)) mode = 'assert';
+  if (isNullOrWS(okHandlerName)) okHandlerName = null;
+  if (isNullOrWS(cancelHandlerName)) cancelHandlerName = null;
+  if (isNullOrWS(argsOkString)) argsOkString = null;
+  if (isNullOrWS(argsCancelString)) argsCancelString = null;
+ 
+  if (okHandlerName != null && mode == 'assert' && !isLocked()) { 
+    eval(okHandlerName + "('" + argsOkString + "')");
+    return;
+  }
+  
+  var title = 'Master Password';
+  if (mode == 'change') title = 'Change master password';
+  
+  var html = HtmlService.createTemplateFromFile('MasterPassword');
+  html.data = { 'mode': mode, 'okHandlerName' : okHandlerName, 'cancelHandlerName' : cancelHandlerName, 'argsOkString' : argsOkString, 'argsCancelString' : argsCancelString };
+  dialog = html.evaluate().setSandboxMode(HtmlService.SandboxMode.IFRAME);
+  SpreadsheetApp.getUi().showModalDialog(dialog, title);
+} catch(e) { handleError(e); } } //for logging
+  
+
+function testPrompt() { try  //for logging
+{
+  promptMasterPassword('assert', 'testPrompt_Ok', 'testPrompt_Cancel');
+} catch(e) { handleError(e); } } //for logging
+function testPrompt_Ok(masterPassword) { try  //for logging
+{
+  SpreadsheetApp.getActiveSpreadsheet().toast('MP OK: ' + masterPassword);
+} catch(e) { handleError(e); } } //for logging
+function testPrompt_Cancel() { try  //for logging
+{
+  SpreadsheetApp.getActiveSpreadsheet().toast('MP Cancel');
+} catch(e) { handleError(e); } } //for logging
+
 
 function unlockSpreasheet(masterPassword) { try  //for logging
 {
@@ -80,82 +102,40 @@ function lockSpreasheet(source) { try  //for logging
 //##     RESET MASTER PASSWORD
 //##################################
 
+
 function changeMasterPassword() { try  //for logging
 {
-  log('Diagnostic', 'Change master-password');
-  if (!assertUnlocked(null, true)) return false;
-  
+  promptMasterPassword('change', 'changeMasterPasswordAdmin');
+} catch(e) { handleError(e); } } //for logging
+
+
+function changeMasterPasswordAdmin(newMaster) { try  //for logging
+{
+  log('Diagnostic', 'Change master password');
   var pek = getP_PEK();
-  var newPassword = askForNewMasterPassword();
-  if (newPassword != null) {
-    setP_EEK(encrypt(pek, newPassword));
+  if (newMaster != null) {
+    setP_EEK(encrypt(pek, newMaster));
     var ui = SpreadsheetApp.getUi();
-    ui.alert('Success !', 'Your master-password has been changed successfully', ui.ButtonSet.OK);
+    ui.alert('Success !', 'Your master password has been changed successfully', ui.ButtonSet.OK);
   }
 } catch(e) { handleError(e); } } //for logging
 
 
-function resetSpreasheet() { try  //for logging
+function resetSpreadheetAdminOk(newMaster) { try  //for logging
 {
-  var programName = getP_ProgramName();
-  
-  var ui = SpreadsheetApp.getUi();
-
-  var result = ui.alert(
-     'Reset ' + programName + ' ?',
-     'Reseting ' + programName + ' will result in the loss of all crypted data in the current spreadsheet. If you continue, you will be prompt for a new Master Password. Are you sure you want to continue?',
-      ui.ButtonSet.YES_NO);
-
-  // Process the user's response.
-  if (result == ui.Button.YES) {
-    var newPassword = askForNewMasterPassword();
-    if (newPassword != null) {
+  if (newMaster != null) {
       initializeProperties(false);
       var newEncryptionKey = generateEncryptionKey();
-      setP_EEK(encrypt(newEncryptionKey, newPassword));
-      unlockSpreasheet(newPassword);
-    };
-  }   
+      setP_EEK(encrypt(newEncryptionKey, newMaster));
+      unlockSpreasheet(newMaster);
+      setP_IsKeystoreReady(true);
+      onOpen();
+  }
 } catch(e) { handleError(e); } } //for logging
 
-
-function askForNewMasterPassword() { try  //for logging
+function resetSpreadheetAdminCancel() { try  //for logging
 {
-  var ui = SpreadsheetApp.getUi(); // Same variations.
-
-  var result = ui.prompt('New master-password', 'Please enter your new master-password:\nWARNING: if you loose this password, there will be no way to recover encrypted data', ui.ButtonSet.OK_CANCEL);
-
-  // Process the user's response.
-  var button = result.getSelectedButton();
-  var input = result.getResponseText();
-  if (button == ui.Button.OK) {
-    return confirmMasterPassword(input, '');
-  } else if (button == ui.Button.CANCEL) {
-    return null;
-  } else if (button == ui.Button.CLOSE) {
-    return null;
-  }
-  return null;
-} catch(e) { handleError(e); } } //for logging
-
-
-function confirmMasterPassword(password, message) { try  //for logging
-{
-  var ui = SpreadsheetApp.getUi(); // Same variations.
-  var result = ui.prompt('Confirm your master-password', message + 'Please confirm your master-password:', ui.ButtonSet.OK_CANCEL);
-
-  // Process the user's response.
-  var button = result.getSelectedButton();
-  var input = result.getResponseText();
-  if (button == ui.Button.OK) {
-    if (input == password) return input;
-    else confirmMasterPassword(password, 'Your input is different from the password you entered. \n');
-  } else if (button == ui.Button.CANCEL) {
-    return null;
-  } else if (button == ui.Button.CLOSE) {
-    return null;
-  }
-  return null;
+  removeAllProperties();
 } catch(e) { handleError(e); } } //for logging
 
 
