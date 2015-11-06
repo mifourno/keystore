@@ -23,9 +23,15 @@ DEPENDENCIES:
  * @OnlyCurrentDoc
  */
 
+// mode: permanent|fewSeconds|untilLock|popup
 function markAsSensitive() { try  //for logging
 {
-  if (!assertUnlocked()) return false;
+  promptMasterPassword('assert', 'markAsSensitiveAdmin');
+} catch(e) { handleError(e); } } //for logging
+
+function markAsSensitiveAdmin() { try  //for logging
+{
+  //if (!assertUnlocked()) return false;
   var pek = getP_PEK();
   var sheet = SpreadsheetApp.getActiveSheet();
   var range = SpreadsheetApp.getActiveSheet().getActiveRange();
@@ -105,7 +111,13 @@ function revealPopup() { try  //for logging
 // mode: permanent|fewSeconds|untilLock|popup
 function reveal(mode) { try  //for logging
 {
-  if (!assertUnlocked()) return false;
+  promptMasterPassword('assert', 'revealAdmin', null, mode);
+} catch(e) { handleError(e); } } //for logging
+
+// mode: permanent|fewSeconds|untilLock|popup
+function revealAdmin(mode) { try  //for logging
+{
+  //if (!assertUnlocked()) return false;
   var pek = getP_PEK();
   
   var sheet = SpreadsheetApp.getActiveSheet();
@@ -153,16 +165,6 @@ function reveal(mode) { try  //for logging
   }
   if (rangeCounter == 0) SpreadsheetApp.getUi().alert('No encrypted cell found within this range selection');
 } catch(e) { handleError(e); } } //for logging
-
-
-/*function justAlert() { try  //for logging
-{
-  //var spreadsheet = SpreadsheetApp.openById('14WbRsYVJsZbrf9_gNS3eOUjPLI7gdFxiPwVXbrkO7bY');
-  var spreadsheet = SpreadsheetApp.getActiveSpreadsheet();
-  var sheet = spreadsheet.getSheetByName('Data');
-  sheet.getRange("A1").setValue(new Date());
-} catch(e) { handleError(e); } } //for logging
-*/
 
 
 function autoReencryptRevealedRange() { try  //for logging
