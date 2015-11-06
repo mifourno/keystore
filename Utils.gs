@@ -36,11 +36,6 @@ function isRangeCrypted(range) { try  //for logging
 } catch(e) { handleError(e); } } //for logging
 
 
-function isLocked()  { try  //for logging
-{
-  var pek = getP_PEK();
-  return isNullOrWS(pek);
-} catch(e) { handleError(e); } } //for logging
 
 function serverSideAlert(title, msg) {  try  //for logging
 {
@@ -93,6 +88,10 @@ function emptyLogs() {  try  //for logging
     if (logsSheet != null) logsSheet.getRange('A2:D10000').clearContent();
   }
 } catch(e) { handleError(e); } } //for logging
+
+
+
+
 
 //############################
 //##    GENERATE PASSWORD
