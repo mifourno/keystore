@@ -153,8 +153,8 @@
         $(e.target).prop('disabled', true);
         return google.script.run
           .withUserObject({'element': e.target, 'text': originalText })
-          .withSuccessHandler(function (result, obj) { if (onSuccessFunction) onSuccessFunction(); $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); })
-          .withFailureHandler(function (msg, obj) { if (onFailureFunction) onFailureFunction(); $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); });
+          .withSuccessHandler(function (result, obj) { if (onSuccessFunction) onSuccessFunction(result, obj); $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); })
+          .withFailureHandler(function (msg, obj) { if (onFailureFunction) onFailureFunction(msg, obj); $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); });
       }
 
       
