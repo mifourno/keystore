@@ -31,8 +31,7 @@ function markAsSensitive() { try  //for logging
 
 function markAsSensitiveAdmin() { try  //for logging
 {
-  //if (!assertUnlocked()) return false;
-  var pek = getP_PEK();
+  var pek = getP_PEK(true);
   var sheet = SpreadsheetApp.getActiveSheet();
   var range = SpreadsheetApp.getActiveSheet().getActiveRange();
   var protectionMessage = getP_ProtectionMessage();
@@ -117,53 +116,79 @@ function reveal(mode) { try  //for logging
 // mode: permanent|fewSeconds|untilLock|popup
 function revealAdmin(mode) { try  //for logging
 {
-  //if (!assertUnlocked()) return false;
-  var pek = getP_PEK();
-  
+  var pek = getP_PEK(true);
   var sheet = SpreadsheetApp.getActiveSheet();
   var range = sheet.getActiveRange();
   
-  var rangeCounter = 0;
-  if (mode == 'popup') {
-    if (isRangeCrypted(range)) {
-      rangeCounter++;
-      var ui = SpreadsheetApp.getUi();
-      ui.alert('Select the value below and hit Ctrl+C', decrypt(range.getValue(),pek), ui.ButtonSet.OK);
-    }
-  } else {
-    if (mode != 'permanent') {
-      var revealedRangeSheets = getP_RevealedRangeSheets();
-      if (revealedRangeSheets.indexOf(embrace(sheet.getSheetId())) < 0) setP_RevealedRangeSheets(revealedRangeSheets + embrace(sheet.getSheetId()));
-    }
+  var encryptedRangeCounter = 0;
+  var corruptedRangeCounter = 0;
+  var revealedRangeCounter = 0;
+  var corruptedRanges = '';
+  var revealedValuesList = [];
+
+  for (var row = range.getRowIndex(); row <= range.getLastRow(); ++row) 
+  {
     for (var col = range.getColumnIndex(); col <= range.getLastColumn(); ++col)
     {
-      for (var row = range.getRowIndex(); row <= range.getLastRow(); ++row) 
-      {
-        var currentRange = sheet.getRange(row,col);
-        if (isRangeCrypted(currentRange)) {
-          rangeCounter++;
-          currentRange.setNumberFormat('@STRING@');
-          currentRange.setValue(decrypt(currentRange.getValue(),pek));
-          currentRange.setFontLine('none');
-          if (mode == 'permanent') {
-            removeProtection(currentRange);
-            if (getP_SetFormatAtEncryption()) {
-              currentRange.setBackground(getP_DecryptedFormat_Background());
-              currentRange.setFontColor(getP_DecryptedFormat_Color());
+      var currentRange = sheet.getRange(row,col);
+      if (!isRangeCrypted(currentRange)) {
+        revealedValuesList.push({ 'range': currentRange.getA1Notation(),  'value' : currentRange.getValue() });
+      } else {
+        encryptedRangeCounter++;
+        var revealedValue = decrypt(currentRange.getValue(),pek);
+        if (isNullOrWS(revealedValue)) {
+          revealedValuesList.push({ 'range': currentRange.getA1Notation(),  'value' : 'N/A' });
+          corruptedRanges += currentRange.getA1Notation() + ", ";
+          corruptedRangeCounter++;
+        } else {
+          revealedValuesList.push({ 'range': currentRange.getA1Notation(),  'value' : revealedValue });
+          revealedRangeCounter++;
+          if (mode != 'popup') {
+            currentRange.setNumberFormat('@STRING@');
+            currentRange.setValue(revealedValue);
+            currentRange.setFontLine('none');
+            if (mode == 'permanent') {
+              removeProtection(currentRange);
+              if (getP_SetFormatAtEncryption()) {
+                currentRange.setBackground(getP_DecryptedFormat_Background());
+                currentRange.setFontColor(getP_DecryptedFormat_Color());
+              }
+            } else {
+              if (getP_SetFormatAtEncryption()) {
+                currentRange.setBackground(getP_RevealedFormat_Background());
+                currentRange.setFontColor(getP_RevealedFormat_Color());
+              }
             }
-          } else {
-            if (getP_SetFormatAtEncryption()) {
-              currentRange.setBackground(getP_RevealedFormat_Background());
-              currentRange.setFontColor(getP_RevealedFormat_Color());
-            }
+            if (currentRange.offset(0,1).getValue() == ' ') currentRange.offset(0,1).clear();
           }
-          if (currentRange.offset(0,1).getValue() == ' ') currentRange.offset(0,1).clear();
         }
       }
     }
-    if (mode == 'fewSeconds') ScriptApp.newTrigger("autoReencryptRevealedRange").timeBased().after(60000).create();
   }
-  if (rangeCounter == 0) SpreadsheetApp.getUi().alert('No encrypted cell found within this range selection');
+  if (encryptedRangeCounter == 0) {
+    customDialog('Nothing to decrypt', 'The cells you selected are not encrypted.', 100);
+  } 
+  if (revealedRangeCounter > 0) {
+    if (mode == 'popup') {
+      height = Math.min(75 + 23 * range.getNumRows(), 400);
+      var html = HtmlService.createTemplateFromFile('RevealPopup');
+      var columns = [];
+      for (var i = 0; i<range.getNumColumns(); i++) {
+        var a1Notation = sheet.getRange(1, range.getColumn() + i).getA1Notation();
+        columns.push(a1Notation.substring(0, a1Notation.length - 1));
+      }
+      html.data = { 'values' : revealedValuesList, 'columns' : columns, 'firstRow' : range.getRow(), 'height' : height };
+      dialog = html.evaluate().setSandboxMode(HtmlService.SandboxMode.IFRAME).setHeight(height);
+      SpreadsheetApp.getUi().showModalDialog(dialog, 'Revealed values');
+    }
+    if (mode == 'fewSeconds' || mode == 'untilLock') {
+      var revealedRangeSheets = getP_RevealedRangeSheets();
+      if (revealedRangeSheets.indexOf(embrace(sheet.getSheetId())) < 0) setP_RevealedRangeSheets(revealedRangeSheets + embrace(sheet.getSheetId()));
+      if (mode == 'fewSeconds') ScriptApp.newTrigger("autoReencryptRevealedRange").timeBased().after(60000).create();
+    }
+  }
+  if ((mode != 'popup' || revealedRangeCounter == 0) && corruptedRangeCounter > 0) customDialog('Warning !', 'The following cells could not be decrypted:\n' + corruptedRanges.substring(0, corruptedRanges.length - 2), 130);
+  
 } catch(e) { handleError(e); } } //for logging
 
 
