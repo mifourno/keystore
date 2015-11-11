@@ -34,11 +34,12 @@ function onOpen()  { try  //for logging
   initializeScriptProperties(true);
   if (getP_IsKeystoreReady() != 'true') {
     updateInitMenuEntries();
+    showSideMenu(false);
   } else { 
     initializeProperties(true);
     updateMenuEntries();
     lockSpreasheet('onOpen');
-    showSideMenu();
+    showSideMenu(true);
   }
 } catch(e) { handleError(e); } } //for logging
 
@@ -60,12 +61,16 @@ function showSettings() { try  //for logging
   SpreadsheetApp.getUi().showSidebar(ui);
 } catch(e) { handleError(e); } } //for logging
 
-function showSideMenu() { try  //for logging
+function showSideMenu(visible) { try  //for logging
 {
-  var ui = HtmlService.createHtmlOutputFromFile('SideMenu')
+  if (typeof visible == 'undefined') visible = true;
+  var htmlFile = 'SideMenu';
+  if (!visible) htmlFile = 'CloseSideMenu';
+  var ui = HtmlService.createHtmlOutputFromFile(htmlFile)
       .setTitle(getP_ProgramName())
       .setSandboxMode(HtmlService.SandboxMode.IFRAME);
   SpreadsheetApp.getUi().showSidebar(ui);
+  
 } catch(e) { handleError(e); } } //for logging
 
 
@@ -89,7 +94,7 @@ function genPassSubMenu(length)  { try  //for logging
 function updateInitMenuEntries()  { try  //for logging
 {
   var myMenu = SpreadsheetApp.getUi().createMenu(getP_ProgramName());
-  myMenu.addItem('Start Keystore', 'startKeystore');
+  myMenu.addItem('Enable Keystore', 'enableKeystore');
   myMenu.addToUi();
 } catch(e) { handleError(e); } } //for logging
 
@@ -127,39 +132,40 @@ function updateMenuEntries()  { try  //for logging
 
   myMenu.addItem('≣ Show side menu', 'showSideMenu');
   myMenu.addItem('⚙ Settings', 'showSettings');
-//  myMenu.addSeparator();    
-//  myMenu.addItem('☠ Terminate Keystore ', 'terminateKestore');
+  if (isOwner()) {
+    myMenu.addSeparator();    
+    myMenu.addItem('✖ Disable Keystore ', 'disableKeystore');
+  }
   myMenu.addToUi();
   
 } catch(e) { handleError(e); } } //for logging
 
 
 //##################################
-//##        START / STOP
+//##        Enable / Disable
 //##################################
 
-function startKeystore() { try  //for logging
+function enableKeystore() { try  //for logging
 {
   promptMasterPassword('init', 'resetSpreadheetAdminOk', 'resetSpreadheetAdminCancel');
 } catch(e) { handleError(e); } } //for logging
 
 
-function terminateKeystore()  { try  //for logging
+function disableKeystore()  { try  //for logging
 {
+  if (!isOwner()) return;
   var ui = SpreadsheetApp.getUi();
   
   //TODO: check owner
   var result = ui.alert(
-     'WARNING',
-     'If you continue, this spreadsheet will remain as it is but encrypted data will be impossible to recover. Are you sure you want to continue?',
+     'WARNING !',
+     'If you continue, this spreadsheet will remain as it is but encrypted data will be impossible to recover. Are you sure you want to continue ?',
       ui.ButtonSet.YES_NO);
   
   // Process the user's response.
   if (result == ui.Button.YES) {
     removeAllProperties();
     onOpen();
-    return true;
   }
-  return false;
 } catch(e) { handleError(e); } } //for logging
 
