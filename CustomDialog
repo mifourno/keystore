@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+    <style>
+      pre {
+        padding: 0px;
+        margin: 0px;
+        font-family: arial, sans-serif;
+        max-height: 80px;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+  
+    <pre><?= data.message ?></pre>
+    
+    <br>
+    <div>
+      <button id="btn-ok" onclick="google.script.host.close()">Ok</button>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script>
+    
+    $(function() {
+        $('#btn-ok').focus();
+        console.log("focus done");
+        $(document).keyup(function(e) {
+          if (e.keyCode == 27 || e.keyCode == 13) { // ESCAPE or ENTER key maps to keycode `27` and `13`
+            google.script.host.close();
+          }
+        });
+      });
+      
+    </script>
+    
+  </body>
+</html>
+
+
