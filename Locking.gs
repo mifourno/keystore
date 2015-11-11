@@ -39,34 +39,26 @@ function promptMasterPassword(mode, okHandlerName, cancelHandlerName, argsOkStri
   if (isNullOrWS(argsOkString)) argsOkString = null;
   if (isNullOrWS(argsCancelString)) argsCancelString = null;
  
-  if (okHandlerName != null && mode == 'assert' && !isLocked()) { 
-    eval(okHandlerName + "('" + argsOkString + "')");
+  if (mode == 'assert' && !isLocked()) {
+    if (okHandlerName != null) eval(okHandlerName + "('" + argsOkString + "')");
     return;
   }
   
   var title = 'Master Password';
   if (mode == 'change') title = 'Change master password';
+  var height = 400;
+  switch (mode) {
+    case 'change': height = 300; break;
+    case 'init': height = 250; break;
+    case 'assert': height = 140; break;
+  }
   
   var html = HtmlService.createTemplateFromFile('MasterPassword');
   html.data = { 'mode': mode, 'okHandlerName' : okHandlerName, 'cancelHandlerName' : cancelHandlerName, 'argsOkString' : argsOkString, 'argsCancelString' : argsCancelString };
-  dialog = html.evaluate().setSandboxMode(HtmlService.SandboxMode.IFRAME);
+  dialog = html.evaluate().setSandboxMode(HtmlService.SandboxMode.IFRAME).setHeight(height);
   SpreadsheetApp.getUi().showModalDialog(dialog, title);
 } catch(e) { handleError(e); } } //for logging
   
-
-function testPrompt() { try  //for logging
-{
-  promptMasterPassword('assert', 'testPrompt_Ok', 'testPrompt_Cancel');
-} catch(e) { handleError(e); } } //for logging
-function testPrompt_Ok(masterPassword) { try  //for logging
-{
-  SpreadsheetApp.getActiveSpreadsheet().toast('MP OK: ' + masterPassword);
-} catch(e) { handleError(e); } } //for logging
-function testPrompt_Cancel() { try  //for logging
-{
-  SpreadsheetApp.getActiveSpreadsheet().toast('MP Cancel');
-} catch(e) { handleError(e); } } //for logging
-
 
 function unlockSpreasheet(masterPassword) { try  //for logging
 {
@@ -112,7 +104,7 @@ function changeMasterPassword() { try  //for logging
 function changeMasterPasswordAdmin(newMaster) { try  //for logging
 {
   log('Diagnostic', 'Change master password');
-  var pek = getP_PEK();
+  var pek = getP_PEK(true);
   if (newMaster != null) {
     setP_EEK(encrypt(pek, newMaster));
     var ui = SpreadsheetApp.getUi();
@@ -127,9 +119,9 @@ function resetSpreadheetAdminOk(newMaster) { try  //for logging
       initializeProperties(false);
       var newEncryptionKey = generateEncryptionKey();
       setP_EEK(encrypt(newEncryptionKey, newMaster));
-      unlockSpreasheet(newMaster);
       setP_IsKeystoreReady(true);
       onOpen();
+      unlockSpreasheet(newMaster);
   }
 } catch(e) { handleError(e); } } //for logging
 
