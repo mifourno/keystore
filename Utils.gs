@@ -29,7 +29,6 @@ function isNullOrWS(value) { try  //for logging
   return (value === 'undefined' || value == null || value == '' || typeof value === 'string' && value.trim() == '')
 } catch(e) { handleError(e); } } //for logging
 
-
 function isRangeCrypted(range) { try  //for logging
 {
   return range.getFontLine() == 'line-through';
@@ -52,9 +51,26 @@ function tryRemoveAllTriggers() { try  //for logging
   } catch (ex) {  }
 } catch(e) { handleError(e); } } //for logging
 
+
 function embrace(value)  { try  //for logging
 {
   return '[' + value + ']';
+} catch(e) { handleError(e); } } //for logging
+
+
+function isOwner(value)  { try  //for logging
+{
+  return (SpreadsheetApp.getActiveSpreadsheet().getOwner().getEmail() == Session.getActiveUser().getEmail());
+} catch(e) { handleError(e); } } //for logging
+
+
+function customDialog(title, msg, height)  { try  //for logging
+{
+  if (isNullOrWS(height)) height = 200;
+  var html = HtmlService.createTemplateFromFile('CustomDialog');
+  html.data = { 'message' : msg };
+  dialog = html.evaluate().setSandboxMode(HtmlService.SandboxMode.IFRAME).setHeight(height);
+  SpreadsheetApp.getUi().showModalDialog(dialog, title);
 } catch(e) { handleError(e); } } //for logging
 
 
@@ -82,7 +98,7 @@ function log(type, message, details)
 function emptyLogs() {  try  //for logging
 {
   var ui = SpreadsheetApp.getUi();
-  var result = ui.alert('Clear logs', 'Are you sure you want to empty this log table?', ui.ButtonSet.YES_NO);
+  var result = ui.alert('Clear logs', 'Are you sure you want to empty this log table ?', ui.ButtonSet.YES_NO);
   if (result == ui.Button.YES) {
     var logsSheet = SpreadsheetApp.getActiveSpreadsheet().getSheetByName('Logs');
     if (logsSheet != null) logsSheet.getRange('A2:D10000').clearContent();
@@ -104,11 +120,32 @@ function genPass(length, mode) {  try  //for logging
 {
   var sheet = SpreadsheetApp.getActiveSheet();
   var range = SpreadsheetApp.getActiveSheet().getActiveRange();
+  
   for (var i = range.getColumnIndex(); i <= range.getLastColumn(); ++i)
   {
     for (var j = range.getRowIndex(); j <= range.getLastRow(); ++j) 
     {
-      sheet.getRange(j,i).setNumberFormat('@STRING@').setValue(genNewPassword(length, mode));
+      if (isRangeCrypted(sheet.getRange(j,i)))
+      {
+        var ui = SpreadsheetApp.getUi(); // Same variations.
+        var result = ui.alert('Warning !', 'Some cells in selection are encrypted !\nGenerating password will overwrite your encrypted data.\nAre you sure you want to continue ?', ui.ButtonSet.YES_NO);
+        if (result == ui.Button.NO) return;
+      }
+    }
+  }
+  
+  for (var i = range.getColumnIndex(); i <= range.getLastColumn(); ++i)
+  {
+    for (var j = range.getRowIndex(); j <= range.getLastRow(); ++j) 
+    {
+      var currentRange = sheet.getRange(j,i);
+      currentRange.setFontLine('none');
+      currentRange.setNumberFormat('@STRING@').setValue(genNewPassword(length, mode));
+      removeProtection(currentRange);
+      if (getP_SetFormatAtEncryption()) {
+        currentRange.setBackground('#fff');
+        currentRange.setFontColor('#000');
+      }
     }
   }
 } catch(e) { handleError(e); } } //for logging
