@@ -25,7 +25,11 @@ DEPENDENCIES:
 
 
 // ################ User Properties #################
-function getP_PEK() { return PropertiesService.getUserProperties().getProperty('PEK'); }
+function getP_PEK(required) { 
+  var pek = PropertiesService.getUserProperties().getProperty('PEK'); 
+  if (required == true && isNullOrWS(pek)) throw "Encryption key is empty. Impossible to complete action.";
+  return pek;
+}
 function setP_PEK(value) { PropertiesService.getUserProperties().setProperty('PEK', value); }
 
 function getP_EEK() { return PropertiesService.getUserProperties().getProperty('EEK'); }
