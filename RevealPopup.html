@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+    <style>
+      table { border-collapse: collapse; }
+      table td.selectable { 
+        border: 1px solid #ccc;
+        padding: 2px 5px;
+      }
+      table th, table td.rowHead {
+        border: 1px solid #ccc;
+        text-align: center;
+        background-color: #eee;
+        padding: 0px 0px;
+        margin: 0px 0px;
+        font-size: 11px;
+      }
+      table th.colHead {
+        min-width: 60px;
+      }
+      table td.rowHead {
+        padding: 2px 10px;
+      }
+      #table-container {
+        width: 100%;
+        max-height: <?= (data.height - 50) ?>px;
+        overflow: auto;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="table-container">
+    <table>
+      <tr>
+        <th>&nbsp;</th>
+        <? for (var i = 0; i < data.columns.length; i++) { ?>
+          <th class="colHead"><?= data.columns[i] ?></th>
+        <? } ?>
+      </tr>
+      
+      <? for (var i = 0; i < data.values.length; i++) { ?>
+        <? if (i % data.columns.length == 0) { ?>
+          <tr><td class="rowHead"><?= data.firstRow + i / data.columns.length ?></td>
+        <? } ?>
+        <td class="selectable"><span><?= data.values[i].value ?></span></td>
+        <? if ((i+1) % data.columns.length == 0) { ?>
+          </tr>
+        <? } ?>
+      <? } ?>
+    
+    </table>
+    </div>
+    <br>
+    <div>
+      <button id="btn-ok" onclick="google.script.host.close()">Ok</button>
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script>
+    
+    $(function() {
+        $('#btn-ok').focus();
+        $(document).keyup(function(e) {
+          if (e.keyCode == 27 || e.keyCode == 13) { // ESCAPE or ENTER key maps to keycode `27` and `13`
+            google.script.host.close();
+          }
+        });
+        
+        $('td').click(selectText);
+      });
+    
+    function selectText(e) {
+      var el = e.target;
+      if (el.tagName.toUpperCase() != "SPAN") el = $(e.target).find("span")[0];
+      if (document.selection) {
+        var range = document.body.createTextRange();
+        range.moveToElementText(el);
+        range.select();
+      } else if (window.getSelection) {
+        var range = document.createRange();
+        range.selectNode(el);
+        window.getSelection().addRange(range);
+      }
+    }
+    
+    </script>
+
+  </body>
+</html>
+
+
