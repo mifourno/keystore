@@ -19,13 +19,22 @@ DEPENDENCIES:
     => CryptoJS_aes.gs
 ---------------------------------------------------------- */
 
+/**
+ * @OnlyCurrentDoc
+ */
+
+
 function encrypt(text,password)
 {
   return encryptAES(text,password);
 }
 function decrypt(text,password)
 {
-  return decryptAES(text,password); 
+  try {
+    return decryptAES(text,password); 
+  } catch (e) {
+    return '';
+  }
 }
 
 //#########################################################################
