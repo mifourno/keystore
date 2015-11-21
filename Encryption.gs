@@ -7,94 +7,375 @@ of the MIT license.  See the LICENSE file for details.
 
 GitHub: https://github.com/mifourno/keystore/
 Contact: mifourno@gmail.com
-
-DEPENDENCIES:
-- Encryption.gs
-- Menu.gs
-- Properties.gs
-- Utils.gs
-- Locking.gs
-- CryptoJSWrapper.gs
-- CryptoJS Files:
-    => CryptoJS_aes.gs
 ---------------------------------------------------------- */
 
 /**
  * @OnlyCurrentDoc
  */
 
-// mode: permanent|fewSeconds|untilLock|popup
+
+// ##############################################
+// ##             ENCRYPTION UTILS
+// ##############################################
+
+function generateEncryptionKey() { try  //for logging
+{
+  var chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghijklmnopqrstuvwxyz";
+  var string_length = 20;
+  var randomstring = '';
+  for (var i=0; i<string_length; i++) {
+    var rnum = Math.floor(Math.random() * chars.length);
+    randomstring += chars.substring(rnum,rnum+1);
+  }
+  return randomstring;
+} catch(e) { handleError(e); } } //for logging
+
+
+
+function isCellEncrypted(range) { try  //for logging
+{
+  return p_isCellLineThrough(range);
+  //if (checkFormatOnly) return p_isCellLineThrough(range);
+  //else return p_isCellLineThrough(range) || p_isCellProtected(range);
+} catch(e) { handleError(e); } } //for logging
+
+
+function p_isCellValueCrypted(range, pek) { try  //for logging
+{
+  // Return values:
+  //  0 => cell is empty
+  //  1 => cell does not start with encrytion header
+  //  2 => value cannot be decrypted
+  //  8 => cannot test further than 0 and 1 because the spreadsheet is locked
+  //  9 => cell is actually crypted 
+  if (isNullOrWS(range.getValue())) return 0;
+  if (typeof range.getValue() != 'string' || range.getValue().indexOf("################# - Data:") != 0) return 1;
+  if (isNullOrWS(pek)) return 8;
+  if (isNullOrWS(decryptValueForCell(range.getValue(), pek))) return 2;
+  return 9;
+} catch(e) { handleError(e); } } //for logging
+
+function p_isCellLineThrough(range) { try  //for logging
+{
+  return range.getFontLine() == 'line-through';
+} catch(e) { handleError(e); } } //for logging
+
+function p_getCellProtection(range, protectionParams, protectionDictionary) { try  //for logging
+{
+  if (protectionDictionary != null) return protectionDictionary[getUniqueId(range)];
+  
+  var sheet = range.getSheet();
+  var protections = sheet.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+  for (var i = 0; i < protections.length; i++) {
+    if (protections[i].getDescription() == protectionParams.protectionMessage && protections[i].getRange().getA1Notation() == range.getA1Notation()) return protections[i];
+  }
+  return null;
+} catch(e) { handleError(e); } } //for logging
+
+
+function p_removeProtection(range, protectionParams, protection, protectionDictionary) { try  //for logging
+{
+  if (!isNullOrWS(protection)) {
+    protection.remove();
+    if (protectionDictionary != null) {
+      var rangeId = getUniqueId(range);
+      protectionDictionary[rangeId] = null;
+    }
+  } else {
+    var protections = range.getSheet().getProtections(SpreadsheetApp.ProtectionType.RANGE);
+    for (var j = 0; j < protections.length; j++) {
+      if (protections[j].getRange().getA1Notation() == range.getA1Notation() && protections[j].getDescription() == protectionParams.protectionMessage) {
+        protections[j].remove();
+        break;
+      }
+    }
+  }
+} catch(e) { handleError(e); } } //for logging
+
+
+function getProtectionParams() { try //for logging
+{
+  var protectionParams = {};
+  protectionParams.protectionMessage = getP_ProtectionMessage();
+  protectionParams.setFormatAtEncryption = getP_SetFormatAtEncryption();
+  protectionParams.initFormat_Background = getP_InitFormat_Background();
+  protectionParams.initFormat_Color = getP_InitFormat_Color();
+  protectionParams.encryptedFormat_Background = getP_EncryptedFormat_Background();
+  protectionParams.encryptedFormat_Color = getP_EncryptedFormat_Color();
+  return protectionParams;
+} catch(e) { handleError(e); } } //for logging
+
+
+function encryptValueForCell(value, pek) { try //for logging
+{
+  return "################# - Data:" + encrypt(value, pek);
+} catch(e) { handleError(e); } } //for logging
+
+
+function decryptValueForCell(encryptedValue, pek) { try //for logging
+{
+  return decrypt(encryptedValue.substring(25), pek);
+} catch(e) { handleError(e); } } //for logging
+
+
+// ##############################################
+// ##              SET STATES
+// ##############################################
+
+function p_setStateInit(range, protectionParams, skipFormat, protection, protectionDictionary) { try  //for logging
+{
+  //Protection
+  p_removeProtection(range, protectionParams, protection, protectionDictionary);
+  
+  //Format
+  if (skipFormat != true) {
+    range.setNumberFormat('@STRING@');
+    range.setFontLine('none');
+    if (protectionParams.setFormatAtEncryption) {
+      range.setBackground(protectionParams.initFormat_Background);
+      range.setFontColor(protectionParams.initFormat_Color);
+    }
+    if (range.offset(0,1).getValue() == ' ') range.offset(0,1).clear();
+  }
+} catch(e) { handleError(e); } } //for logging
+
+
+function p_setStateEncrypted(range, protectionParams, skipFormat, protection, protectionDictionary) { try  //for logging
+{
+  if (arguments.length < 4) protection = p_getCellProtection(range, protectionParams, protectionDictionary);
+  
+  //Protection
+  if (isNullOrWS(protection)) protection = range.protect().setDescription(protectionParams.protectionMessage).setWarningOnly(true);
+  
+  //Protection Dictionary
+  if (protectionDictionary != null) protectionDictionary[getUniqueId(range)] = protection;
+  
+  //Format
+  if (skipFormat != true) {
+    range.setFontLine('line-through');
+    if (protectionParams.setFormatAtEncryption) {
+      range.setBackground(protectionParams.encryptedFormat_Background);
+      range.setFontColor(protectionParams.encryptedFormat_Color);
+    }
+  }
+  if (range.offset(0,1).isBlank()) range.offset(0,1).setValue(' ');
+} catch(e) { handleError(e); } } //for logging
+
+
+// ##############################################
+// ##    CONSISTANCY (protection and format)
+// ##############################################
+
+function getProtectionDictionary(sheet, protectionParams)  { try  //for logging
+{
+  var keystoreProtections = new Array();
+  var protections = sheet.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+  for (var i = 0; i < protections.length; i++) {
+    if (protections[i].getDescription() == protectionParams.protectionMessage) {
+      keystoreProtections[getUniqueId(protections[i].getRange())] = protections[i];
+    }
+  }
+  return keystoreProtections;
+} catch(e) { handleError(e); } } //for logging
+
+function checkConsistancyAllSheets()  { try  //for logging
+{
+  var dirtyCellsBySheet = [];
+  var protectionParams = getProtectionParams();
+  var pek = getP_PEK(false);
+  
+  var allSheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
+  for (var j = 0; j < allSheets.length; j++) {
+    var dirtyCells = checkConsistancyFullSheet(allSheets[j], pek, protectionParams);
+    if (dirtyCells.length > 0) dirtyCellsBySheet.push( { sheetName: allSheets[j].getName(), dirtyCells: dirtyCells } );
+  }
+  if (dirtyCellsBySheet.length > 0) {
+    var dirtyCellsList = '';
+    for (var i = 0; i < dirtyCellsBySheet.length; i++) {
+      dirtyCellsList += '\nSheet "' + dirtyCellsBySheet[i].sheetName + '": ';
+      for (var j = 0; j < dirtyCellsBySheet[i].dirtyCells.length; j++) dirtyCellsList += dirtyCellsBySheet[i].dirtyCells[j].getA1Notation() + ', ';
+      dirtyCellsList = dirtyCellsList.substring(0, dirtyCellsList.length - 2);
+    }
+    serverSideAlert('Some cells cannot be read', "The following cells' data that cannot be decrypted.\nPlease review their content and clear them to return to normal.\n" + dirtyCellsList);
+  }
+  return dirtyCells;
+} catch(e) { handleError(e); } } //for logging
+
+
+function checkConsistancyFullSheet(sheet, pek, protectionParams) { try  //for logging
+{
+  if (isNullOrWS(sheet)) sheet = SpreadsheetApp.getActiveSheet();
+  if (isNullOrWS(protectionParams)) protectionParams = getProtectionParams();
+  var protectionDictionary = getProtectionDictionary(sheet, protectionParams);
+  
+  var dirtyCells = [];
+  var alreadyChecked = '';
+  
+  var protections = sheet.getProtections(SpreadsheetApp.ProtectionType.RANGE);
+  for (var i = 0; i < protections.length; i++) {
+    if (protections[i].getDescription() == protectionParams.protectionMessage) {
+      var range = protections[i].getRange();
+      if (!checkConsistancySingleCell(range, pek, protectionParams, protectionDictionary)) dirtyCells.push(range);
+      alreadyChecked += range.getA1Notation() + ',';
+    }
+  }
+  
+  // This represents ALL the data
+  var fullRange = sheet.getDataRange();
+  var values = fullRange.getValues();
+
+  // This logs the spreadsheet in CSV format with a trailing comma
+  for (var i = 0; i < values.length; i++) {
+    for (var j = 0; j < values[i].length; j++) {
+      var range = fullRange.getCell(i+1, j+1);
+      if (alreadyChecked.indexOf(range.getA1Notation() + ',') < 0) {
+        var isLineThrough = p_isCellLineThrough(range);
+        if (p_isCellLineThrough(range) || (typeof values[i][j] == 'string' && !isNullOrWS(values[i][j]) && values[i][j].indexOf("################# - Data:") == 0)) {
+          if (!checkConsistancySingleCell(range, pek, protectionParams, protectionDictionary)) dirtyCells.push(range);
+        }
+      }
+    }
+  }
+ 
+  return dirtyCells;
+} catch(e) { handleError(e); } } //for logging
+
+
+function checkConsistancySingleCell(range, pek, protectionParams, protectionDictionary) { try  //for logging
+{
+  if (isNullOrWS(range)) range = SpreadsheetApp.getActiveRange();
+  if (isNullOrWS(protectionParams)) protectionParams = getProtectionParams();
+  if (protectionDictionary == null) protectionDictionary = getProtectionDictionary(range.getSheet(), protectionParams);
+  var protection = protectionDictionary[getUniqueId(range)];
+  
+  var isLineThrough = p_isCellLineThrough(range);
+  
+  if (isNullOrWS(range.getValue()) && (isLineThrough || protection != null)) {
+    p_setStateInit(range, protectionParams, !isLineThrough, protection, protectionDictionary);
+    
+    return true;
+  }
+  
+  var isCrypted = p_isCellValueCrypted(range, pek);
+  
+  // Cell is supposed to be encrypted but cannot be decrypted even though PEK is available
+  if (isCrypted == 2) {
+    p_setStateEncrypted(range, protectionParams, isLineThrough, protection, protectionDictionary); 
+    return false;
+  }
+  
+  
+  // Cell is empty or does not start with encryption header
+  if (isCrypted < 2) {
+    if (isLineThrough || protection != null)
+    {
+      p_setStateInit(range, protectionParams, !isLineThrough, protection, protectionDictionary);
+    }
+  }
+  
+  // Cell is supposed to be encrypted. We either don't know if value can be decrypted (spreadsheet is locked) or it's value can be decrypted with success
+  if (isCrypted >= 8) {
+    if (!isLineThrough || protection == null)
+    {
+      p_setStateEncrypted(range, protectionParams, isLineThrough, protection, protectionDictionary); 
+    }
+  }
+  return true;
+  
+  
+  
+//  if (isLineThrough && protection != null) {
+//    // Cell is empty or does not start with encryption header
+//    if (isCrypted < 2) p_setStateInit(range, !isLineThrough, protection, protectionDictionary);
+//    // Cell is supposed to be encrypted but cannot be decrypted even though PEK is available
+//    else if (isCrypted == 2) return false;
+//  }
+//  else if (isLineThrough || protection != null) {
+//    // Cell is empty or does not start with encryption header
+//    if (isCrypted < 2) p_setStateInit(range, !isLineThrough, protection, protectionDictionary);
+//    // Cell is supposed to be encrypted but cannot be decrypted even though PEK is available
+//    else if (isCrypted == 2) {
+//      p_setStateEncrypted(range, isLineThrough, protection, protectionDictionary); 
+//      return false;
+//    }
+//    // Cell's value can be decrypted with success
+//    else if (isCrypted >= 8) p_setStateEncrypted(range, isLineThrough, protection, protectionDictionary); 
+//  } else {
+//    // Cell is supposed to be encrypted but cannot be decrypted even though PEK is available
+//    if (isCrypted == 2) {
+//      p_setStateEncrypted(range, isLineThrough, protection, protectionDictionary); 
+//      return false;
+//    }
+//    if (isCrypted >= 8) p_setStateEncrypted(range, isLineThrough, protection, protectionDictionary); 
+//  }
+  
+  
+  
+} catch(e) { handleError(e); } } //for logging
+
+
+// ##############################################
+// ##                ENCRYPTING
+// ##############################################
+
+
 function markAsSensitive() { try  //for logging
 {
-  promptMasterPassword('assert', 'markAsSensitiveAdmin');
+  if (isLocked()) promptMasterPassword('assert', 'markAsSensitiveAdmin');
+  else markAsSensitiveAdmin();
 } catch(e) { handleError(e); } } //for logging
+
 
 function markAsSensitiveAdmin() { try  //for logging
 {
   var pek = getP_PEK(true);
   var sheet = SpreadsheetApp.getActiveSheet();
   var range = SpreadsheetApp.getActiveSheet().getActiveRange();
-  var protectionMessage = getP_ProtectionMessage();
-  var setFormatAtEncryption = getP_SetFormatAtEncryption();
-  var background = getP_EncryptedFormat_Background();
-  var color = getP_EncryptedFormat_Color();
+  
+  var protectionParams = getProtectionParams();
+  var protectionDictionary = getProtectionDictionary(sheet, protectionParams);
+    
+  // Check whether some cells are already encrypted
   for (var i = range.getColumnIndex(); i <= range.getLastColumn(); ++i)
   {
     for (var j = range.getRowIndex(); j <= range.getLastRow(); ++j) 
     {
-      if (isRangeCrypted(sheet.getRange(j,i)))
+      checkConsistancySingleCell(sheet.getRange(j,i), pek, protectionParams, protectionDictionary);
+      if (isCellEncrypted(sheet.getRange(j,i)))
       {
-        var ui = SpreadsheetApp.getUi(); // Same variations.
-        ui.alert('Already encrypted !', 'Some cells in selection are already encrypted ! Encryption Aborted !', ui.ButtonSet.OK);
+        serverSideAlert('Already encrypted !', 'Some cells in selection are already encrypted ! Encryption Aborted !');
         return;
       }
     }
   }
+  
   var rangeCounter = 0;
   for (var col = range.getColumnIndex(); col <= range.getLastColumn(); ++col)
   {
     for (var row = range.getRowIndex(); row <= range.getLastRow(); ++row) 
     {
-      if (markAsSensitive_SingleCell(sheet, row,col, pek, protectionMessage, setFormatAtEncryption, background, color)) rangeCounter++;
+      if (markAsSensitive_SingleCell(sheet, protectionParams, row, col, pek)) rangeCounter++;
     }
   }
   
-  if (rangeCounter == 0) SpreadsheetApp.getActiveSpreadsheet().toast('No data to encrypt within this range selection');
+  if (rangeCounter == 0) serverSideAlert('Empty selection', 'No data to encrypt within this range selection');
   
 } catch(e) { handleError(e); } } //for logging
 
 
-function markAsSensitive_SingleCell(sheet, row, col, pek, protectionMessage, setFormatAtEncryption, background, color) { try //for logging
+function markAsSensitive_SingleCell(sheet, protectionParams, row, col, pek) { try //for logging
 {
   var rangeToEncrypt = sheet.getRange(row,col);
   if (isNullOrWS(rangeToEncrypt.getValue())) return false;  
-  var protections = sheet.getProtections(SpreadsheetApp.ProtectionType.RANGE);
-  if (rangeToEncrypt.offset(0,1).isBlank()) rangeToEncrypt.offset(0,1).setValue(' ');
-  rangeToEncrypt.setFontLine('line-through');
-  rangeToEncrypt.setValue(encrypt(rangeToEncrypt.getValue(),pek));
-  var rangeFound = false;
-  for (var j = 0; j < protections.length; j++) {
-    if (protections[j].getDescription() == protectionMessage && protections[j].getRange().getA1Notation() == rangeToEncrypt.getA1Notation()) { rangeFound = true; break; }
-  }
-  if (!rangeFound) rangeToEncrypt.protect().setDescription(protectionMessage).setWarningOnly(true);
-  if (setFormatAtEncryption) {
-    rangeToEncrypt.setBackground(background);
-    rangeToEncrypt.setFontColor(color);
-  }
-  
+  p_setStateEncrypted(rangeToEncrypt, protectionParams);
+  rangeToEncrypt.setValue(encryptValueForCell(rangeToEncrypt.getValue(), pek));
   return true;
 } catch(e) { handleError(e); } } //for logging
 
 
-function revealFewSeconds() { try  //for logging
-{
-  reveal('fewSeconds');
-} catch(e) { handleError(e); } } //for logging
-
-function revealUntilLock() { try  //for logging
-{
-  reveal('untilLock');
-} catch(e) { handleError(e); } } //for logging
+// ##############################################
+// ##                REVEALING
+// ##############################################
 
 function removeEncryption() { try  //for logging
 {
@@ -106,14 +387,15 @@ function revealPopup() { try  //for logging
   reveal('popup');
 } catch(e) { handleError(e); } } //for logging
 
-
-// mode: permanent|fewSeconds|untilLock|popup
+// mode: permanent|popup
 function reveal(mode) { try  //for logging
 {
-  promptMasterPassword('assert', 'revealAdmin', null, mode);
+  if (isLocked()) promptMasterPassword('assert', 'revealAdmin', null, mode);
+  else revealAdmin(mode);
 } catch(e) { handleError(e); } } //for logging
 
-// mode: permanent|fewSeconds|untilLock|popup
+
+// mode: permanent|popup
 function revealAdmin(mode) { try  //for logging
 {
   var pek = getP_PEK(true);
@@ -125,41 +407,32 @@ function revealAdmin(mode) { try  //for logging
   var revealedRangeCounter = 0;
   var corruptedRanges = '';
   var revealedValuesList = [];
-
+  
+  var protectionParams = getProtectionParams();
+  var protectionDictionary = getProtectionDictionary(sheet, protectionParams);
+  
+  
   for (var row = range.getRowIndex(); row <= range.getLastRow(); ++row) 
   {
     for (var col = range.getColumnIndex(); col <= range.getLastColumn(); ++col)
     {
+      checkConsistancySingleCell(sheet.getRange(row,col), pek, protectionParams, protectionDictionary);
       var currentRange = sheet.getRange(row,col);
-      if (!isRangeCrypted(currentRange)) {
-        revealedValuesList.push({ 'range': currentRange.getA1Notation(),  'value' : currentRange.getValue() });
+      if (!isCellEncrypted(currentRange)) {
+        revealedValuesList.push(currentRange.getValue());
       } else {
         encryptedRangeCounter++;
-        var revealedValue = decrypt(currentRange.getValue(),pek);
+        var revealedValue = decryptValueForCell(currentRange.getValue(),pek);
         if (isNullOrWS(revealedValue)) {
-          revealedValuesList.push({ 'range': currentRange.getA1Notation(),  'value' : 'N/A' });
+          revealedValuesList.push('N/A');
           corruptedRanges += currentRange.getA1Notation() + ", ";
           corruptedRangeCounter++;
         } else {
-          revealedValuesList.push({ 'range': currentRange.getA1Notation(),  'value' : revealedValue });
+          revealedValuesList.push(revealedValue);
           revealedRangeCounter++;
           if (mode != 'popup') {
-            currentRange.setNumberFormat('@STRING@');
             currentRange.setValue(revealedValue);
-            currentRange.setFontLine('none');
-            if (mode == 'permanent') {
-              removeProtection(currentRange);
-              if (getP_SetFormatAtEncryption()) {
-                currentRange.setBackground(getP_DecryptedFormat_Background());
-                currentRange.setFontColor(getP_DecryptedFormat_Color());
-              }
-            } else {
-              if (getP_SetFormatAtEncryption()) {
-                currentRange.setBackground(getP_RevealedFormat_Background());
-                currentRange.setFontColor(getP_RevealedFormat_Color());
-              }
-            }
-            if (currentRange.offset(0,1).getValue() == ' ') currentRange.offset(0,1).clear();
+            p_setStateInit(currentRange, protectionParams);
           }
         }
       }
@@ -170,21 +443,7 @@ function revealAdmin(mode) { try  //for logging
   } 
   if (revealedRangeCounter > 0) {
     if (mode == 'popup') {
-      height = Math.min(75 + 23 * range.getNumRows(), 400);
-      var html = HtmlService.createTemplateFromFile('RevealPopup');
-      var columns = [];
-      for (var i = 0; i<range.getNumColumns(); i++) {
-        var a1Notation = sheet.getRange(1, range.getColumn() + i).getA1Notation();
-        columns.push(a1Notation.substring(0, a1Notation.length - 1));
-      }
-      html.data = { 'values' : revealedValuesList, 'columns' : columns, 'firstRow' : range.getRow(), 'height' : height };
-      dialog = html.evaluate().setSandboxMode(HtmlService.SandboxMode.IFRAME).setHeight(height);
-      SpreadsheetApp.getUi().showModalDialog(dialog, 'Revealed values');
-    }
-    if (mode == 'fewSeconds' || mode == 'untilLock') {
-      var revealedRangeSheets = getP_RevealedRangeSheets();
-      if (revealedRangeSheets.indexOf(embrace(sheet.getSheetId())) < 0) setP_RevealedRangeSheets(revealedRangeSheets + embrace(sheet.getSheetId()));
-      if (mode == 'fewSeconds') ScriptApp.newTrigger("autoReencryptRevealedRange").timeBased().after(60000).create();
+      showRevealPopup(range, revealedValuesList);
     }
   }
   if ((mode != 'popup' || revealedRangeCounter == 0) && corruptedRangeCounter > 0) customDialog('Warning !', 'The following cells could not be decrypted:\n' + corruptedRanges.substring(0, corruptedRanges.length - 2), 130);
@@ -192,70 +451,18 @@ function revealAdmin(mode) { try  //for logging
 } catch(e) { handleError(e); } } //for logging
 
 
-function autoReencryptRevealedRange() { try  //for logging
+function showRevealPopup(range, valuesList) { try  //for logging
 {
-  log('Diagnostic', 'Auto reencrypt revealed range');
-  reencryptRevealedRange();
+  var sheet = SpreadsheetApp.getActiveSheet();
+  height = Math.min(75 + 23 * range.getNumRows(), 400);
+  var html = HtmlService.createTemplateFromFile('RevealPopup');
+  var columns = [];
+  for (var i = 0; i<range.getNumColumns(); i++) {
+    var a1Notation = sheet.getRange(1, range.getColumn() + i).getA1Notation();
+    columns.push(a1Notation.substring(0, a1Notation.length - 1));
+  }
+  html.data = { 'values' : valuesList, 'columns' : columns, 'firstRow' : range.getRow(), 'height' : height };
+  dialog = html.evaluate().setSandboxMode(HtmlService.SandboxMode.IFRAME).setHeight(height);
+  SpreadsheetApp.getUi().showModalDialog(dialog, 'Revealed values');
 } catch(e) { handleError(e); } } //for logging
 
-
-function reencryptRevealedRange() { try  //for logging
-{
-  var allSheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
-  var revealedRangeSheets = getP_RevealedRangeSheets();
-  if (!isNullOrWS(revealedRangeSheets)) {
-    for (var j = 0; j < allSheets.length; j++) {
-      if (revealedRangeSheets.indexOf(embrace(allSheets[j].getSheetId())) >= 0)
-      {
-        syncLineThroughAndProtectionOnSheet(allSheets[j]);
-        revealedRangeSheets = revealedRangeSheets.replace(embrace(allSheets[j].getSheetId()), '');
-        setP_RevealedRangeSheets(revealedRangeSheets);
-      }
-    }
-  }
-} catch(e) { handleError(e); } } //for logging
-
-
-function removeProtection(range) { try  //for logging
-{
-  var protections = range.getSheet().getProtections(SpreadsheetApp.ProtectionType.RANGE);
-  for (var j = 0; j < protections.length; j++) {
-    if (protections[j].getRange().getA1Notation() == range.getA1Notation()) protections[j].remove();
-  }
-} catch(e) { handleError(e); } } //for logging
-
-
-function syncLineThroughAndProtection()  { try  //for logging
-{
-  var rangeList = '';
-  var allSheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
-  for (var j = 0; j < allSheets.length; j++) {
-    syncLineThroughAndProtectionOnSheet(allSheets[j]);
-  }
-} catch(e) { handleError(e); } } //for logging
-
-
-function syncLineThroughAndProtectionOnSheet(sheet) { try  //for logging
-{
-  var pek = getP_PEK();
-  var protectionMessage = getP_ProtectionMessage();
-  var setFormatAtEncryption = getP_SetFormatAtEncryption();
-  var background = getP_EncryptedFormat_Background();
-  var color = getP_EncryptedFormat_Color();
-  var protections = sheet.getProtections(SpreadsheetApp.ProtectionType.RANGE);
-  var dirtyRange = '';
-  for (var i = 0; i < protections.length; i++) {
-    if (protections[i].getDescription() == protectionMessage) {
-      if (protections[i].getRange().isBlank()) protections[i].remove();
-      else if (!isRangeCrypted(protections[i].getRange())) { 
-        if (!isNullOrWS(pek)) markAsSensitive_SingleCell(sheet, protections[i].getRange().getRow(), protections[i].getRange().getColumn(), pek, protectionMessage, setFormatAtEncryption, background, color);
-        else dirtyRange += protections[i].getRange().getA1Notation() + ', ';
-      }
-    }
-  }
-  if (!isNullOrWS(dirtyRange)) 
-  {
-    var ui = SpreadsheetApp.getUi();
-    ui.alert('Oops: dirty range !', 'The following cells should be encrypted, but font is not striked out. Please review and either encrypt them or simply set the font strike out to fix the problem\n\n' + 'Sheet "' + sheet.getName() + '": ' + dirtyRange, ui.ButtonSet.OK);
-  }
-} catch(e) { handleError(e); } } //for logging
