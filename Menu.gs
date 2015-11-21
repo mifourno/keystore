@@ -7,16 +7,6 @@ of the MIT license.  See the LICENSE file for details.
 
 GitHub: https://github.com/mifourno/keystore/
 Contact: mifourno@gmail.com
-
-DEPENDENCIES:
-- Encryption.gs
-- Menu.gs
-- Properties.gs
-- Utils.gs
-- Locking.gs
-- CryptoJSWrapper.gs
-- CryptoJS Files:
-    => CryptoJS_aes.gs
 ---------------------------------------------------------- */
 
 /**
@@ -39,18 +29,43 @@ function onOpen()  { try  //for logging
     initializeProperties(true);
     updateMenuEntries();
     lockSpreasheet('onOpen');
-    showSideMenu(true);
+    
+    try {
+      var triggers = ScriptApp.getProjectTriggers();
+      
+      showSideMenu(true);
+      //checkConsistancyAllSheets();
+    } catch (ex) {
+      
+    }
+    
+    
   }
 } catch(e) { handleError(e); } } //for logging
 
 function onEdit(event) { try  //for logging
 {
-  setP_LastUpdate(new Date());
+  if (getP_IsKeystoreReady() == 'true') {
+    setP_LastUpdate(new Date());
+    if (event.range != null) {
+      var sheet = event.range.getSheet();
+      var protectionParams = getProtectionParams();
+      var protectionDictionary = getProtectionDictionary(sheet, protectionParams);
+      var pek = getP_PEK(false);
+      for (var row = event.range.getRowIndex(); row <= event.range.getLastRow(); ++row) 
+      {
+        for (var col = event.range.getColumnIndex(); col <= event.range.getLastColumn(); ++col)
+        {
+          checkConsistancySingleCell(sheet.getRange(row,col), pek, protectionParams, protectionDictionary);
+        }
+      }
+    }
+  }
 } catch(e) { handleError(e); } } //for logging
 
 
 //##################################
-//##        SHOW/HIDE SIDE BARS
+//##     SHOW/HIDE SIDE MENUS
 //##################################
 
 function showSettings() { try  //for logging
@@ -61,15 +76,27 @@ function showSettings() { try  //for logging
   SpreadsheetApp.getUi().showSidebar(ui);
 } catch(e) { handleError(e); } } //for logging
 
+function showSharing(email, canEdit, isError) { try  //for logging
+{
+  if (!isOwner()) throw new Error('Only the owner of this spreadsheet can share this file');
+  
+  var html = HtmlService.createTemplateFromFile('Sharing');
+  html.data = { email : email, canEdit : canEdit, isError : isError };
+  sideMenu = html.evaluate().setSandboxMode(HtmlService.SandboxMode.IFRAME).setTitle('Sharing');
+  SpreadsheetApp.getUi().showSidebar(sideMenu);
+  
+} catch(e) { handleError(e); } } //for logging
+
 function showSideMenu(visible) { try  //for logging
 {
   if (typeof visible == 'undefined') visible = true;
   var htmlFile = 'SideMenu';
   if (!visible) htmlFile = 'CloseSideMenu';
-  var ui = HtmlService.createHtmlOutputFromFile(htmlFile)
-      .setTitle(getP_ProgramName())
-      .setSandboxMode(HtmlService.SandboxMode.IFRAME);
-  SpreadsheetApp.getUi().showSidebar(ui);
+  
+  var html = HtmlService.createTemplateFromFile(htmlFile);
+  html.data = { isOwner : isOwner() };
+  sideMenu = html.evaluate().setSandboxMode(HtmlService.SandboxMode.IFRAME).setTitle(getP_ProgramName());
+  SpreadsheetApp.getUi().showSidebar(sideMenu);
   
 } catch(e) { handleError(e); } } //for logging
 
@@ -111,8 +138,6 @@ function updateMenuEntries()  { try  //for logging
   myMenu.addSeparator();
   
   myMenu.addItem('⌫ Reveal in popup', 'revealPopup');
-  myMenu.addItem('⌫ Reveal just for a minute', 'revealFewSeconds');
-  myMenu.addItem('⌫ Reveal until next lock', 'revealUntilLock');
   myMenu.addItem('⌫ Reveal permanently', 'removeEncryption');
   myMenu.addSeparator();
   
@@ -131,39 +156,43 @@ function updateMenuEntries()  { try  //for logging
   myMenu.addSeparator();
 
   myMenu.addItem('≣ Show side menu', 'showSideMenu');
+  if (isOwner()) myMenu.addItem('✉ Share', 'showSharing');
   myMenu.addItem('⚙ Settings', 'showSettings');
   if (isOwner()) {
-    myMenu.addSeparator();    
-    myMenu.addItem('✖ Disable Keystore ', 'disableKeystore');
+    myMenu.addSeparator();
+    myMenu.addItem('✖ Disable Keystore', 'disableKeystore');
   }
+  
   myMenu.addToUi();
   
 } catch(e) { handleError(e); } } //for logging
 
 
 //##################################
-//##        Enable / Disable
+//##       ENABLE / DISABLE
 //##################################
 
 function enableKeystore() { try  //for logging
 {
+  if (!isOwner()) {
+    serverSideAlert('Enabling keystore', 'You can enable keystore only on spreadsheet that you owe.');
+    return;
+  }
   promptMasterPassword('init', 'resetSpreadheetAdminOk', 'resetSpreadheetAdminCancel');
 } catch(e) { handleError(e); } } //for logging
 
 
 function disableKeystore()  { try  //for logging
 {
-  if (!isOwner()) return;
-  var ui = SpreadsheetApp.getUi();
+  if (!isOwner()) throw new Error('Only the owner of this spreadsheet can disable keystore');
   
-  //TODO: check owner
+  var ui = SpreadsheetApp.getUi();
   var result = ui.alert(
      'WARNING !',
      'If you continue, this spreadsheet will remain as it is but encrypted data will be impossible to recover. Are you sure you want to continue ?',
       ui.ButtonSet.YES_NO);
-  
-  // Process the user's response.
   if (result == ui.Button.YES) {
+    removeAllProtections();
     removeAllProperties();
     onOpen();
   }
