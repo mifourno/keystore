@@ -7,16 +7,6 @@ of the MIT license.  See the LICENSE file for details.
 
 GitHub: https://github.com/mifourno/keystore/
 Contact: mifourno@gmail.com
-
-DEPENDENCIES:
-- Encryption.gs
-- Menu.gs
-- Properties.gs
-- Utils.gs
-- Locking.gs
-- CryptoJSWrapper.gs
-- CryptoJS Files:
-    => CryptoJS_aes.gs
 ---------------------------------------------------------- */
 
 /**
@@ -27,13 +17,10 @@ DEPENDENCIES:
 // ################ User Properties #################
 function getP_PEK(required) { 
   var pek = PropertiesService.getUserProperties().getProperty('PEK'); 
-  if (required == true && isNullOrWS(pek)) throw "Encryption key is empty. Impossible to complete action.";
+  if (required == true && isNullOrWS(pek)) throw new Error('Encryption key is empty. Impossible to complete action.');
   return pek;
 }
 function setP_PEK(value) { PropertiesService.getUserProperties().setProperty('PEK', value); }
-
-function getP_EEK() { return PropertiesService.getUserProperties().getProperty('EEK'); }
-function setP_EEK(value) { PropertiesService.getUserProperties().setProperty('EEK', value); }
 
 function getP_LastUpdate() { return PropertiesService.getUserProperties().getProperty('LastUpdate'); }
 function setP_LastUpdate(value) { PropertiesService.getUserProperties().setProperty('LastUpdate', value); }
@@ -49,6 +36,10 @@ function setP_PasswordChars(value) { PropertiesService.getUserProperties().setPr
 
 function getP_RevealMode() { return PropertiesService.getUserProperties().getProperty('RevealMode'); }
 function setP_RevealMode(value) { PropertiesService.getUserProperties().setProperty('RevealMode', value); }
+         
+function getP_AutoEncryptNewPassword() { return (PropertiesService.getDocumentProperties().getProperty('AutoEncryptNewPassword') === 'true'); }
+function setP_AutoEncryptNewPassword(value) { PropertiesService.getDocumentProperties().setProperty('AutoEncryptNewPassword', value); }
+
 
 // ################ Script Properties #################
 function getP_ProgramName() { return PropertiesService.getScriptProperties().getProperty('ProgramName'); }
@@ -58,11 +49,36 @@ function getP_ProtectionMessage() { return PropertiesService.getScriptProperties
 function setP_ProtectionMessage(value) { PropertiesService.getScriptProperties().setProperty('ProtectionMessage', value); }
 
 // ################ Document Properties #################
+
+function getP_EEK(userEmail) { 
+  var eekArray = JSON.parse(PropertiesService.getDocumentProperties().getProperty('EEK'));
+  if (eekArray != null) {
+    for (var i = 0; i < eekArray.length; i++) {
+      if (eekArray[i].userEmailLowered == userEmail.toLowerCase()) return eekArray[i].EEK;
+    }
+  }
+  return null;
+}
+function setP_EEK(userEmail, value) {
+  var allEEK = PropertiesService.getDocumentProperties().getProperty('EEK');
+  var eekArray = null;
+  if (isNullOrWS(allEEK)) eekArray = [];
+  else eekArray = JSON.parse(allEEK);
+  eekArray.push({ 'userEmailLowered' : userEmail.toLowerCase(), 'EEK' : value });
+  PropertiesService.getDocumentProperties().setProperty('EEK', JSON.stringify(eekArray)); 
+}
+
+function getP_Sharing() { return PropertiesService.getDocumentProperties().getProperty('Sharing'); }
+function setP_Sharing(value) { PropertiesService.getDocumentProperties().setProperty('Sharing', value); }
+
 function getP_IsKeystoreReady() { return PropertiesService.getDocumentProperties().getProperty('IsKeystoreReady'); }
 function setP_IsKeystoreReady(value) { PropertiesService.getDocumentProperties().setProperty('IsKeystoreReady', value); }
 
 function getP_RevealedRangeSheets() { return PropertiesService.getDocumentProperties().getProperty('RevealedRangeSheets'); }
 function setP_RevealedRangeSheets(value) { PropertiesService.getDocumentProperties().setProperty('RevealedRangeSheets', value); }
+
+//function getP_EncryptionList() { return PropertiesService.getDocumentProperties().getProperty('EncryptionList'); }
+//function setP_EncryptionList(value) { PropertiesService.getDocumentProperties().setProperty('EncryptionList', value); }
 
 function getP_AutolockDelay() { return Number(PropertiesService.getDocumentProperties().getProperty('AutolockDelay')); }
 function setP_AutolockDelay(value) { PropertiesService.getDocumentProperties().setProperty('AutolockDelay', value); }
@@ -88,17 +104,11 @@ function setP_EncryptedFormat_Background(value) { PropertiesService.getDocumentP
 function getP_EncryptedFormat_Color() { return PropertiesService.getDocumentProperties().getProperty('EF_COL'); }
 function setP_EncryptedFormat_Color(value) { PropertiesService.getDocumentProperties().setProperty('EF_COL', value); }
 
-function getP_RevealedFormat_Background() { return PropertiesService.getDocumentProperties().getProperty('RF_BG'); }
-function setP_RevealedFormat_Background(value) { PropertiesService.getDocumentProperties().setProperty('RF_BG', value); }
+function getP_InitFormat_Background() { return PropertiesService.getDocumentProperties().getProperty('IF_BG'); }
+function setP_InitFormat_Background(value) { PropertiesService.getDocumentProperties().setProperty('IF_BG', value); }
 
-function getP_RevealedFormat_Color() { return PropertiesService.getDocumentProperties().getProperty('RF_COL'); }
-function setP_RevealedFormat_Color(value) { PropertiesService.getDocumentProperties().setProperty('RF_COL', value); }
-
-function getP_DecryptedFormat_Background() { return PropertiesService.getDocumentProperties().getProperty('DF_BG'); }
-function setP_DecryptedFormat_Background(value) { PropertiesService.getDocumentProperties().setProperty('DF_BG', value); }
-
-function getP_DecryptedFormat_Color() { return PropertiesService.getDocumentProperties().getProperty('DF_COL'); }
-function setP_DecryptedFormat_Color(value) { PropertiesService.getDocumentProperties().setProperty('DF_COL', value); }
+function getP_InitFormat_Color() { return PropertiesService.getDocumentProperties().getProperty('IF_COL'); }
+function setP_InitFormat_Color(value) { PropertiesService.getDocumentProperties().setProperty('IF_COL', value); }
 
 
 function initializeScriptProperties(onlyIfNotExist)  { try  //for logging
@@ -106,7 +116,7 @@ function initializeScriptProperties(onlyIfNotExist)  { try  //for logging
   var scriptProperties = PropertiesService.getScriptProperties();
   // Script Properties
   initializePropertyIfNotExist(scriptProperties, 'ProgramName', 'Keystore', onlyIfNotExist);
-  initializePropertyIfNotExist(scriptProperties, 'ProtectionMessage', 'Marked as sensitive', onlyIfNotExist);
+  initializePropertyIfNotExist(scriptProperties, 'ProtectionMessage', 'Encrypted', onlyIfNotExist);
 } catch(e) { handleError(e); } } //for logging
 
 function initializeProperties(onlyIfNotExist)  { try  //for logging
@@ -116,7 +126,6 @@ function initializeProperties(onlyIfNotExist)  { try  //for logging
   var defautSettings = getDefaultSettings();
   // User Properties
   initializePropertyIfNotExist(userProperties, 'PEK', '', onlyIfNotExist);
-  initializePropertyIfNotExist(userProperties, 'EEK', '', onlyIfNotExist);
   initializePropertyIfNotExist(userProperties, 'LastUpdate', new Date(), onlyIfNotExist);
   initializePropertyIfNotExist(userProperties, 'LockedAt', new Date(), onlyIfNotExist);
   initializePropertyIfNotExist(userProperties, 'PasswordLength', '20', onlyIfNotExist);
@@ -124,6 +133,8 @@ function initializeProperties(onlyIfNotExist)  { try  //for logging
   initializePropertyIfNotExist(userProperties, 'RevealMode', 'symbols', onlyIfNotExist);
   
   // Document Properties
+  initializePropertyIfNotExist(documentProperties, 'EEK', '', onlyIfNotExist);
+  initializePropertyIfNotExist(documentProperties, 'Sharing', '', onlyIfNotExist);
   initializePropertyIfNotExist(documentProperties, 'RevealedRangeSheets', '', onlyIfNotExist);
   initializePropertyIfNotExist(documentProperties, 'AutolockDelay', defautSettings.autolockDelay, onlyIfNotExist);
   initializePropertyIfNotExist(documentProperties, 'SetFormatAtEncryption', defautSettings.setFormatAtEncryption, onlyIfNotExist);
@@ -134,12 +145,8 @@ function initializeProperties(onlyIfNotExist)  { try  //for logging
   
   initializePropertyIfNotExist(documentProperties, 'EF_BG', defautSettings.EF_BG, onlyIfNotExist);
   initializePropertyIfNotExist(documentProperties, 'EF_COL', defautSettings.EF_COL, onlyIfNotExist);
-  initializePropertyIfNotExist(documentProperties, 'RF_BG', defautSettings.RF_BG, onlyIfNotExist);
-  initializePropertyIfNotExist(documentProperties, 'RF_COL', defautSettings.RF_COL, onlyIfNotExist);
-  initializePropertyIfNotExist(documentProperties, 'DF_BG', defautSettings.DF_BG, onlyIfNotExist);
-  initializePropertyIfNotExist(documentProperties, 'DF_COL', defautSettings.DF_COL, onlyIfNotExist);
-  
-  syncLineThroughAndProtection();
+  initializePropertyIfNotExist(documentProperties, 'IF_BG', defautSettings.IF_BG, onlyIfNotExist);
+  initializePropertyIfNotExist(documentProperties, 'IF_COL', defautSettings.IF_COL, onlyIfNotExist);
   
 } catch(e) { handleError(e); } } //for logging
 
@@ -147,7 +154,7 @@ function initializeProperties(onlyIfNotExist)  { try  //for logging
 function initializePropertyIfNotExist(propertySet, name, value, onlyIfNotExist)  { try  //for logging
 {
   var propertyValue = propertySet.getProperty(name);
-  if (!onlyIfNotExist || propertyValue === 'undefined' || propertyValue == null || propertyValue == '') propertySet.setProperty(name, value);
+  if (!onlyIfNotExist || typeof propertyValue == 'undefined' || propertyValue == null || propertyValue == '') propertySet.setProperty(name, value);
 } catch(e) { handleError(e); } } //for logging
 
 function removeAllProperties()  { try  //for logging
@@ -163,10 +170,8 @@ function getSettings()  { try  //for logging
     autolockDelay: getP_AutolockDelay(),
     EF_BG: getP_EncryptedFormat_Background(),
     EF_COL: getP_EncryptedFormat_Color(),
-    RF_BG: getP_RevealedFormat_Background(),
-    RF_COL: getP_RevealedFormat_Color(),
-    DF_BG: getP_DecryptedFormat_Background(),
-    DF_COL: getP_DecryptedFormat_Color(),
+    IF_BG: getP_InitFormat_Background(),
+    IF_COL: getP_InitFormat_Color(),
     setFormatAtEncryption : getP_SetFormatAtEncryption(),
     genPassPunctuations: getP_GenPassPunctuations(),
     genPassSymbols: getP_GenPassSymbols(),
@@ -181,10 +186,8 @@ function saveSettings(settings)  { try  //for logging
   setP_AutolockDelay(settings.autolockDelay);
   setP_EncryptedFormat_Background(settings.EF_BG);
   setP_EncryptedFormat_Color(settings.EF_COL);
-  setP_RevealedFormat_Background(settings.RF_BG);
-  setP_RevealedFormat_Color(settings.RF_COL);
-  setP_DecryptedFormat_Background(settings.DF_BG);
-  setP_DecryptedFormat_Color(settings.DF_COL);
+  setP_InitFormat_Background(settings.IF_BG);
+  setP_InitFormat_Color(settings.IF_COL);
   setP_SetFormatAtEncryption(settings.setFormatAtEncryption);
   setP_GenPassPunctuations(settings.genPassPunctuations);
   setP_GenPassSymbols(settings.genPassSymbols);
@@ -199,10 +202,12 @@ function getDefaultSettings()  { try  //for logging
     autolockDelay: 5,
     EF_BG: '#f4cccc',
     EF_COL: '#990000',
-    RF_BG: '#fce5cd',
-    RF_COL: '#b45f06',
-    DF_BG: '#d9ead3',
-    DF_COL: '#38761d',
+    //RF_BG: '#fce5cd',
+    //RF_COL: '#b45f06',
+    //DF_BG: '#d9ead3',
+    //DF_COL: '#38761d',
+    IF_BG: '#ffffff',
+    IF_COL: '#000000',
     setFormatAtEncryption : true,
     genPassPunctuations: ',.;:()[]{}/\\',
     genPassSymbols: '!#$%&*+-<=>?@^_|~',
@@ -218,7 +223,8 @@ function getPreferences()  { try  //for logging
   var settings = {
     passwordLength: getP_PasswordLength(),
     passwordChars: getP_PasswordChars(),
-    revealMode: getP_RevealMode()
+    revealMode: getP_RevealMode(),
+    autoEncryptNewPassword: getP_AutoEncryptNewPassword()
   };
   return settings;
 } catch(e) { handleError(e); } } //for logging
@@ -228,5 +234,6 @@ function savePreferences(preferences)  { try  //for logging
   setP_PasswordLength(preferences.passwordLength);
   setP_PasswordChars(preferences.passwordChars);
   setP_RevealMode(preferences.revealMode);
+  setP_AutoEncryptNewPassword(preferences.autoEncryptNewPassword);
 } catch(e) { handleError(e); } } //for logging
 
