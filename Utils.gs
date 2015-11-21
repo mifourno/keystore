@@ -9,14 +9,6 @@ GitHub: https://github.com/mifourno/keystore/
 Contact: mifourno@gmail.com
 
 DEPENDENCIES:
-- Encryption.gs
-- Menu.gs
-- Properties.gs
-- Utils.gs
-- Locking.gs
-- CryptoJSWrapper.gs
-- CryptoJS Files:
-    => CryptoJS_aes.gs
 ---------------------------------------------------------- */
 
 /**
@@ -26,21 +18,20 @@ DEPENDENCIES:
 
 function isNullOrWS(value) { try  //for logging
 {
-  return (value === 'undefined' || value == null || value == '' || typeof value === 'string' && value.trim() == '')
+  return (typeof value == 'undefined' || value == null || value == '' || typeof value === 'string' && value.trim() == '');
 } catch(e) { handleError(e); } } //for logging
 
-function isRangeCrypted(range) { try  //for logging
+function getUniqueId(range) { try  //for logging
 {
-  return range.getFontLine() == 'line-through';
+  return range.getSheet().getSheetId() + ',' + range.getA1Notation();
 } catch(e) { handleError(e); } } //for logging
-
-
 
 function serverSideAlert(title, msg) {  try  //for logging
 {
   var ui = SpreadsheetApp.getUi();
   ui.alert(title, msg, ui.ButtonSet.OK);
 } catch(e) { handleError(e); } } //for logging
+
 
 function tryRemoveAllTriggers() { try  //for logging
 {
@@ -52,9 +43,32 @@ function tryRemoveAllTriggers() { try  //for logging
 } catch(e) { handleError(e); } } //for logging
 
 
+function removeAllProtections()  { try  //for logging
+{
+  var allSheets = SpreadsheetApp.getActiveSpreadsheet().getSheets();
+  var protectionParams = getProtectionParams();
+  
+  for (var j = 0; j < allSheets.length; j++) {
+    var protections = allSheets[j].getProtections(SpreadsheetApp.ProtectionType.RANGE);
+    for (var i = 0; i < protections.length; i++) {
+      var protection = protections[i];
+      if (protection.getDescription() == protectionParams.protectionMessage) {
+        var isLineThrough = p_isCellLineThrough(protection.getRange());
+        p_setStateInit(protection.getRange(), protectionParams, !isLineThrough, protection);
+      }
+    }
+  }
+} catch(e) { handleError(e); } } //for logging
+
+
 function embrace(value)  { try  //for logging
 {
   return '[' + value + ']';
+} catch(e) { handleError(e); } } //for logging
+
+function splitBraces(value)  { try  //for logging
+{
+  return value.substring(1, value.length-2).split('][');
 } catch(e) { handleError(e); } } //for logging
 
 
@@ -79,8 +93,16 @@ function customDialog(title, msg, height)  { try  //for logging
 //############################
 function handleError(ex)
 {
-  log("Error", ex.fileName + ', line ' + ex.lineNumber + ': ' +  ex.message, ex.stack);
-  SpreadsheetApp.getActiveSpreadsheet().toast('An error occured: ' + ex.message);
+  if (isNullOrWS(ex)) {
+    log("Error", 'An error occured');
+    SpreadsheetApp.getActiveSpreadsheet().toast('An error occured');
+  } else if (isNullOrWS(ex.message)) {
+    log("Error", ex);
+    SpreadsheetApp.getActiveSpreadsheet().toast('An error occured: ' + ex);
+  } else {
+    log("Error", ex.fileName + ', line ' + ex.lineNumber + ': ' +  ex.message, ex.stack);
+    SpreadsheetApp.getActiveSpreadsheet().toast('An error occured: ' + ex.message);
+  }
 }
 function log(type, message, details)
 {
@@ -116,42 +138,51 @@ function emptyLogs() {  try  //for logging
 
 // Usefull link: http://keepass.info/help/base/pwgenerator.html
 
-function genPass(length, mode) {  try  //for logging
+function genPass(length, mode, autoEncryptPassword) { try  //for logging
 {
+  if (isNullOrWS(autoEncryptPassword)) autoEncryptPassword = getP_AutoEncryptNewPassword();
+  var params = length + ',' + mode + ',' + autoEncryptPassword;
+  if (autoEncryptPassword && isLocked()) promptMasterPassword('assert', 'genPass_Admin', null, params);
+  else genPass_Admin(params);
+} catch(e) { handleError(e); } } //for logging
+
+
+function genPass_Admin(params) {  try  //for logging
+{
+  var splitParams = params.split(',');
+  var length = parseInt(splitParams[0]);
+  var mode = splitParams[1];
+  var autoEncryptPassword = (splitParams[2] === "true");
+  var newPasswordList = [];
+  
+  var pek = '';
+  if (autoEncryptPassword) getP_PEK(true);
+  else getP_PEK(false);
+  
   var sheet = SpreadsheetApp.getActiveSheet();
   var range = SpreadsheetApp.getActiveSheet().getActiveRange();
   
+  var protectionParams = getProtectionParams();
+  var protectionDictionary = getProtectionDictionary(sheet, protectionParams);
+  
+  var foundEncryptedCells = false;
   for (var i = range.getColumnIndex(); i <= range.getLastColumn(); ++i)
   {
     for (var j = range.getRowIndex(); j <= range.getLastRow(); ++j) 
     {
-      if (isRangeCrypted(sheet.getRange(j,i)))
-      {
-        var ui = SpreadsheetApp.getUi(); // Same variations.
-        var result = ui.alert('Warning !', 'Some cells in selection are encrypted !\nGenerating password will overwrite your encrypted data.\nAre you sure you want to continue ?', ui.ButtonSet.YES_NO);
-        if (result == ui.Button.NO) return;
-      }
+      checkConsistancySingleCell(sheet.getRange(j,i), pek, protectionParams, protectionDictionary);
+      if (isCellEncrypted(sheet.getRange(j,i))) foundEncryptedCells = true;
     }
   }
   
-  for (var i = range.getColumnIndex(); i <= range.getLastColumn(); ++i)
-  {
-    for (var j = range.getRowIndex(); j <= range.getLastRow(); ++j) 
-    {
-      var currentRange = sheet.getRange(j,i);
-      currentRange.setFontLine('none');
-      currentRange.setNumberFormat('@STRING@').setValue(genNewPassword(length, mode));
-      removeProtection(currentRange);
-      if (getP_SetFormatAtEncryption()) {
-        currentRange.setBackground('#fff');
-        currentRange.setFontColor('#000');
-      }
-    }
+  if (foundEncryptedCells) {
+    var ui = SpreadsheetApp.getUi();
+    var result = ui.alert('Warning !', 'Some cells in selection are encrypted !\nGenerating password will overwrite your encrypted data.\nAre you sure you want to continue ?', ui.ButtonSet.YES_NO);
+    if (result == ui.Button.NO) return;
   }
-} catch(e) { handleError(e); } } //for logging
-
-function genNewPassword(length, mode) {  try  //for logging
-{
+  
+  
+  
   // mode 1: Numerical
   // mode 2: Alpha
   // mode 3: AlphaNumerical
@@ -163,6 +194,29 @@ function genNewPassword(length, mode) {  try  //for logging
   else charset = getP_GenPassNum() + getP_GenPassAlpha();
   if (mode > 3) charset += getP_GenPassSymbols();
   if (mode > 4) charset += getP_GenPassPunctuations();
+  
+  for (var j = range.getRowIndex(); j <= range.getLastRow(); ++j) 
+  {
+    for (var i = range.getColumnIndex(); i <= range.getLastColumn(); ++i)
+    {
+      var newPassword = genNewPassword(length, charset);
+      var currentRange = sheet.getRange(j,i);
+      if (autoEncryptPassword) {
+        newPasswordList.push(newPassword);
+        currentRange.setValue(encryptValueForCell(newPassword, pek));
+        p_setStateEncrypted(currentRange, protectionParams);
+      } else {
+        currentRange.setValue(newPassword);
+        p_setStateInit(currentRange, protectionParams);
+      }
+    }
+  }
+  if (autoEncryptPassword) showRevealPopup(range, newPasswordList);
+  
+} catch(e) { handleError(e); } } //for logging
+
+function genNewPassword(length, charset) {  try  //for logging
+{
   var retVal = '';
   for (var i = 0, n = charset.length; i < length; ++i) retVal += charset.charAt(Math.floor(Math.random() * n));
   return retVal;
