@@ -9,14 +9,6 @@ GitHub: https://github.com/mifourno/keystore/
 Contact: mifourno@gmail.com
 
 DEPENDENCIES:
-- Encryption.gs
-- Menu.gs
-- Properties.gs
-- Utils.gs
-- Locking.gs
-- CryptoJSWrapper.gs
-- CryptoJS Files:
-    => CryptoJS_aes.gs
 ---------------------------------------------------------- */
 
 /**
@@ -62,7 +54,8 @@ function promptMasterPassword(mode, okHandlerName, cancelHandlerName, argsOkStri
 
 function unlockSpreasheet(masterPassword) { try  //for logging
 {
-  var pek = decrypt(getP_EEK(), masterPassword);
+  //log('diag', 'unlockSpreasheet', Session.getActiveUser().getEmail() + '\n' + getP_EEK(Session.getActiveUser().getEmail()) + '\n' + masterPassword);
+  var pek = decrypt(getP_EEK(Session.getActiveUser().getEmail()), masterPassword);
   if (isNullOrWS(pek)) return false;
   
   log('Diagnostic', 'Unlock spreadshit');
@@ -83,7 +76,6 @@ function manualLockSpreasheet(source) { try  //for logging
 function lockSpreasheet(source) { try  //for logging
 {
   log('Diagnostic', 'Lock spreadshit (' + source + ')');
-  reencryptRevealedRange();
   setP_PEK('');
   setP_LockedAt(new Date());
   tryRemoveAllTriggers();
@@ -91,7 +83,7 @@ function lockSpreasheet(source) { try  //for logging
 
 
 //##################################
-//##     RESET MASTER PASSWORD
+//##    CHANGE MASTER PASSWORD
 //##################################
 
 
@@ -106,22 +98,26 @@ function changeMasterPasswordAdmin(newMaster) { try  //for logging
   log('Diagnostic', 'Change master password');
   var pek = getP_PEK(true);
   if (newMaster != null) {
-    setP_EEK(encrypt(pek, newMaster));
-    var ui = SpreadsheetApp.getUi();
-    ui.alert('Success !', 'Your master password has been changed successfully', ui.ButtonSet.OK);
+    setP_EEK(Session.getActiveUser().getEmail(), encrypt(pek, newMaster));
+    serverSideAlert('Success !', 'Your master password has been changed successfully');
   }
 } catch(e) { handleError(e); } } //for logging
 
 
+//##################################
+//##       RESET KEYSTORE
+//##################################
+
 function resetSpreadheetAdminOk(newMaster) { try  //for logging
 {
   if (newMaster != null) {
-      initializeProperties(false);
-      var newEncryptionKey = generateEncryptionKey();
-      setP_EEK(encrypt(newEncryptionKey, newMaster));
-      setP_IsKeystoreReady(true);
-      onOpen();
-      unlockSpreasheet(newMaster);
+    initializeProperties(false);
+    var newEncryptionKey = generateEncryptionKey();
+    setP_EEK(Session.getActiveUser().getEmail(), encrypt(newEncryptionKey, newMaster));
+    setP_IsKeystoreReady(true);
+    onOpen();
+    unlockSpreasheet(newMaster);
+    serverSideAlert('READY !', "You're all set ! You can start encrypting cells. Use the side-bar buttons for that.");
   }
 } catch(e) { handleError(e); } } //for logging
 
@@ -131,17 +127,90 @@ function resetSpreadheetAdminCancel() { try  //for logging
 } catch(e) { handleError(e); } } //for logging
 
 
-function generateEncryptionKey() { try  //for logging
+//##################################
+//##         SHARING
+//##################################
+
+function getUsers() { try  //for logging
 {
-  var chars = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXTZabcdefghijklmnopqrstuvwxyz";
-  var string_length = 20;
-  var randomstring = '';
-  for (var i=0; i<string_length; i++) {
-    var rnum = Math.floor(Math.random() * chars.length);
-    randomstring += chars.substring(rnum,rnum+1);
+  if (!isOwner()) throw new Error('Only the owner of this spreadsheet can share this file');
+  
+  var editors = SpreadsheetApp.getActiveSpreadsheet().getEditors();
+  var viewers = SpreadsheetApp.getActiveSpreadsheet().getViewers();
+  var owner = SpreadsheetApp.getActiveSpreadsheet().getOwner();
+  
+  var allKeys = new Array();
+  var allUsers = [];
+  for (var i = 0; i < editors.length; i++) {
+    allUsers.push(getUserPoco(editors[i], true, owner));
+    allKeys[editors[i].getEmail()] = true;
   }
-  return randomstring;
+  for (var i = 0; i < viewers.length; i++) {
+    if (allKeys[viewers[i].getEmail()] != true) allUsers.push(getUserPoco(viewers[i], false));
+  }
+  return allUsers;
 } catch(e) { handleError(e); } } //for logging
+
+function addUser(email, canEdit) { try  //for logging
+{
+  if (isLocked()) promptMasterPassword('assert', 'addUserAdmin', null, email + ',' + canEdit);
+  else addUserAdmin(email + ',' + canEdit);
+} catch(e) { handleError(e); } } //for logging
+
+
+function addUserAdmin(params) { try  //for logging
+{
+  if (!isOwner()) throw new Error('Only the owner of this spreadsheet can share this file');
+  var pek = getP_PEK(true);
+  
+  var paramSplited = params.split(',');
+  var email = paramSplited[0];
+  var canEdit = paramSplited[1] == 'true';
+  
+  try
+  {
+    if (canEdit) SpreadsheetApp.getActiveSpreadsheet().addEditor(email);
+    else SpreadsheetApp.getActiveSpreadsheet().addViewer(email);
+  } catch(ex) {
+    showSharing(email, canEdit, true);
+    return;
+  }
+  var charset = getP_GenPassNum() + getP_GenPassAlpha() + getP_GenPassSymbols();
+  var newUserMaster = genNewPassword(12, charset);
+  setP_EEK(email, encrypt(pek, newUserMaster));
+  
+  //log('diag', 'addUserAdmin', email + '\n' + getP_EEK(email) + '\n' + newUserMaster);
+  
+  serverSideAlert('Success !', 'Your have just shared shared this file with ' + email + '\nTo be able to decrypt data he or she will need this temporary password:\n\n'+ newUserMaster + '\n\nThe person will be asked to change this password on the first connection.');
+  showSharing();
+} catch(e) { handleError(e); } } //for logging
+
+function updateRights(email, canEdit) { try  //for logging
+{
+  if (!isOwner()) throw new Error('Only the owner of this spreadsheet can share this file');
+  
+  if (canEdit) SpreadsheetApp.getActiveSpreadsheet().addEditor(email);
+  else { 
+    SpreadsheetApp.getActiveSpreadsheet().removeEditor(email);
+    SpreadsheetApp.getActiveSpreadsheet().addViewer(email);
+  }
+} catch(e) { handleError(e); } } //for logging
+
+function removeUser(email, canEdit) { try  //for logging
+{
+  if (!isOwner()) throw new Error('Only the owner of this spreadsheet can share this file');
+  
+  SpreadsheetApp.getActiveSpreadsheet().removeViewer(email);
+} catch(e) { handleError(e); } } //for logging
+
+
+function getUserPoco(user, canEdit, owner) { try  //for logging
+{
+  var email = user.getEmail();
+  return { email : email, canEdit : canEdit, isOwner : email == owner };
+} catch(e) { handleError(e); } } //for logging
+
+
 
 
 //##################################
