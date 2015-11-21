@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+    <style>
+      #saving { margin-left: 20px; }
+      .user-email { width:175px;text-overflow: ellipsis;overflow:hidden; }
+      .btn { cursor:pointer; margin-left: 5px; font-size: 18px; }
+      table, tr { width: 100%; margin: 0px; padding: 0px; border: none; }
+      td { padding: 5px 0px;border: none; }
+      .err { color: #900; display: none; }
+      #new-user-form { margin: 10px 0px; }
+    </style>
+  </head>
+  <body>
+  
+    <div class="sidebar branding-below">
+    
+      <div><b>Share with a new user</b></div>
+    
+      <div id="new-user-form">
+        <input type="text" id="new-email" class="color" placeholder="Email address" />
+        <select id="new-rights">
+          <option value="edit">Can edit</option>
+          <option value="view">Can view</option>
+        </select>
+        <div id="err-email" class="err">The email address is not valid</div>
+        <div id="err-exists" class="err">The file is already shared with this user</div>
+      </div>
+      <button class="share" id="new-share">Share</button>
+      
+      <br><br><br>
+      
+      <div><b>List of users</b><span id="saving"></span></div>
+      
+      <div id="users-list"></div>
+      
+      
+      <br>
+      <div><button id="btn-close" onclick="closeSharing()">Close</button></div>
+    
+    </div>
+    
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.9.1/jquery.min.js"></script>
+    <script>
+    
+    var usersList = [];
+    var firstAttempt = false;
+    
+    $(function() {
+        $('#btn-close').click(closeSharing);
+        $('#new-share').click(addUser);
+        $('#new-email').keyup(validateNewUser);
+        initShareSideBar();
+        <? if (data.email) { ?> $('#new-email').val('<?=data.email ?>'); <? } ?>
+        <? if (data.isError == true) { ?> $('#err-email').show(); <? } ?>
+        <? if (data.canEdit == false) { ?> $('#new-rights').val('view'); <? } ?>
+    });
+    
+    function closeSharing() {
+      google.script.run.showSideMenu(true);
+    }
+    
+    function getUsers() {
+      $('#users-list').html("Loading...");
+      google.script.run.withSuccessHandler(displayUsers).getUsers();
+    }
+    
+    
+    function displayUsers(allUsers) {
+      usersList = allUsers;
+      var tableHtml = '<table>';
+      for (var i = 0; i < allUsers.length; i++) {
+        disableOrNot = '';
+        if (allUsers[i].isOwner) disableOrNot = 'disabled';
+        tableHtml += '<tr>';
+        tableHtml += '<td title="' + allUsers[i].email + '"><div class="user-email">' + allUsers[i].email + '</div></td>';
+        tableHtml += '<td align="right"><select ' + disableOrNot + ' onchange="updateRights(\'' + allUsers[i].email + '\', this.value)">';
+        if (allUsers[i].canEdit) tableHtml += '<option value="edit" selected>Can edit</option><option value="view">Can view</option>';
+        else tableHtml += '<option value="edit">Can edit</option><option value="view" selected>Can view</option>';
+        tableHtml += '</select></td>';
+        if (!allUsers[i].isOwner) tableHtml += '<td><div class="btn" title="Remove user" onclick="removeUser(\'' + allUsers[i].email + '\')">✖</div></td>';
+        else tableHtml += '<td><div></div></td>';
+        tableHtml += '</tr>';
+      }
+      tableHtml += '</table>';
+      $('#users-list').html(tableHtml);
+    }
+    
+    function displaySaving() {
+      $('#saving').html('saving...');
+      $('#saving').show();
+    }
+    function displaySaved() {
+      $('#saving').html('saved');
+      $('#saving').show();
+    }
+    
+    
+    function updateRights(email, newValue) {
+      displaySaving();
+      google.script.run.withSuccessHandler(displaySaved).withFailureHandler(initShareSideBar).updateRights(email, newValue == "edit");
+    }
+    
+    function removeUser(email) {
+      displaySaving();
+      google.script.run.withSuccessHandler(initShareSideBar).withFailureHandler(initShareSideBar).removeUser(email); 
+    }
+    
+    function addUser(e) {
+      firstAttempt = true;
+      var newUser = $('#new-email').val().toLowerCase();
+      if (!isEmail(newUser)) {
+        $('#err-email').show();
+        return;
+      }
+      for (var i = 0; i < usersList.length; i++) {
+        if (usersList[i].email == newUser) {
+          $('#err-exists').show();
+          return;
+        }
+      }
+      var newRights = $('#new-rights').val();
+      callServerScript(e).addUser(newUser, newRights == "edit");
+    }
+//    function addUserResult(result) {
+//      if (result == false) $('#err-email').show();
+//      else initShareSideBar();
+//    }
+    
+    function validateNewUser() {
+      if (!firstAttempt) return;
+      $('#err-exists').hide();
+      var newUser = $('#new-email').val().toLowerCase();
+      if (!isEmail(newUser)) $('#err-email').show();
+      else $('#err-email').hide();
+    }
+    
+    function initShareSideBar() {
+      $('#new-email').val('');
+      $('#new-rights').prop('selectedIndex',0);
+      firstAttempt = false;
+      $('#err-email').hide();
+      $('#err-exists').hide();
+      $('#saving').hide();
+      getUsers();
+    }
+    
+    function isEmail(email) {
+      var regex = /^([a-zA-Z0-9_.+-])+\@(([a-zA-Z0-9-])+\.)+([a-zA-Z0-9]{2,4})+$/;
+      return regex.test(email);
+    }
+    
+    function callServerScript(e, onSuccessFunction, onFailureFunction) {
+        var originalText = $(e.target).html();
+        $(e.target).html('Wait...');
+        $(e.target).prop('disabled', true);
+        return google.script.run
+          .withUserObject({'element': e.target, 'text': originalText })
+          .withSuccessHandler(function (result, obj) { if (onSuccessFunction) onSuccessFunction(result, obj); $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); })
+          .withFailureHandler(function (msg, obj) { if (onFailureFunction) onFailureFunction(msg, obj); $(obj.element).html(obj.text); $(obj.element).prop('disabled', false); });
+      }
+    
+    
+    </script>
+    
+  </body>
+</html>
+
+
