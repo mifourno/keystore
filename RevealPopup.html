@@ -44,7 +44,7 @@
         <? if (i % data.columns.length == 0) { ?>
           <tr><td class="rowHead"><?= data.firstRow + i / data.columns.length ?></td>
         <? } ?>
-        <td class="selectable"><span><?= data.values[i].value ?></span></td>
+        <td class="selectable"><span><?= data.values[i] ?></span></td>
         <? if ((i+1) % data.columns.length == 0) { ?>
           </tr>
         <? } ?>
