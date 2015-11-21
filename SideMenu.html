@@ -18,10 +18,8 @@
       <div>
         <button class="share" id="reveal">Reveal</button>
         <select id="reveal-mode">
-          <option value="popup">in popup</option>
-          <option value="minute">for few seconds</option>
-          <option value="lock">until next lock</option>
-          <option value="permanent">permanently</option>
+          <option value="popup">show in popup</option>
+          <option value="permanent">decrypt the cell(s)</option>
         </select>
       
       </div>
@@ -29,6 +27,7 @@
       <br>
       
         <div><b>To generate random passwords</b></div> 
+        
         <label for="chars">Type</label>
         <select id="chars">
           <option value="5">With punctuation - Abc123#@%{}[];:,</option>
@@ -40,6 +39,7 @@
         
         <label for="length">Length</label>
         <select id="length">
+          <optgroup label="Password">
           <option value="20">20</option>
           <option value="16">16</option>
           <option value="12">12</option>
@@ -47,16 +47,29 @@
           <option value="8">8</option>
           <option value="6">6</option>
           <option value="4">4</option>
+          </optgroup>
+          <optgroup label="Key">
+          <option value="256">256</option>
+          <option value="128">128</option>
+          <option value="64">64</option>
+          </optgroup>
         </select>
         
-        <button class="action" id="gen-pass">Generate password</button>  
+        <button class="action" id="gen-pass">Generate new password</button>  
+        <div>
+          <input type="checkbox" id="auto-encrypt" checked>
+          <label for="auto-encrypt">auto-encrypt new passwords</label>
+        </div>
+        
+        
       
       <br><br>
       <div><b>Other actions</b></div> 
       <div class="inline form-group">
       
         <div>
-          <button id="lock-now">♜ Lock now</button>
+          <? if (data.isOwner) { ?> <button id="sharing" class="share">Share</button> <? } ?>
+          <button id="lock-now" title="Closes your session, in case you typed in your master password earlier.">♜ Lock now</button>
           <button id="settings">⚙ Settings</button>
         </div>
         <div><a id="change-master">♺ Change master password</a></div>
@@ -77,14 +90,17 @@
         $('#encrypt').click(encrypt);
         $('#gen-pass').click(generatePassword);
         $('#lock-now').click(lockNow);
+        $('#sharing').click(openSharing);
         $('#settings').click(openSettings);
         $('#change-master').click(changeMaster);
         
         $('#length').change(function() { dirtyPreferences = true; });
         $('#chars').change(function() { dirtyPreferences = true; });
         $('#reveal-mode').change(function() { dirtyPreferences = true; });
+        $('#auto-encrypt').change(function() { dirtyPreferences = true; });
         
         google.script.run.withSuccessHandler(loadPreferences).getPreferences();
+
       });
       
       function encrypt(e) {
@@ -96,12 +112,6 @@
           case 'popup':
             callServerScript(e).revealPopup();
             break;
-          case 'minute':
-            callServerScript(e).revealFewSeconds();
-            break;
-          case 'lock':
-            callServerScript(e).revealUntilLock();
-            break;
           case 'permanent':
             callServerScript(e).removeEncryption();
             break;
@@ -109,13 +119,16 @@
       }
       function generatePassword(e) {
         savePreferences();
-        callServerScript(e).genPass($('#length').val(), $('#chars').val());
+        callServerScript(e).genPass($('#length').val(), $('#chars').val(), $('#auto-encrypt').prop('checked'));
       }
       function lockNow(e) {
         callServerScript(e).lockSpreasheet('manual');
       }
       function openSettings(e) {
         callServerScript(e).showSettings();
+      }
+      function openSharing(e) {
+        callServerScript(e).showSharing();
       }
       function changeMaster(e) {
         callServerScript(e).changeMasterPassword();
@@ -125,6 +138,7 @@
         $('#length').val(preferences.passwordLength);
         $('#chars').val(preferences.passwordChars);
         $('#reveal-mode').val(preferences.revealMode);
+        $('#auto-encrypt').prop('checked', preferences.autoEncryptNewPassword);
         dirtyPreferences = false;
       }
       
@@ -132,7 +146,8 @@
         return {
           passwordLength: $('#length').val(),
           passwordChars: $('#chars').val(),
-          revealMode: $('#reveal-mode').val()
+          revealMode: $('#reveal-mode').val(),
+          autoEncryptNewPassword: $('#auto-encrypt').prop('checked'),
         };
       }
       
