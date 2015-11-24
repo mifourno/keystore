@@ -22,6 +22,9 @@ function getP_PEK(required) {
 }
 function setP_PEK(value) { PropertiesService.getUserProperties().setProperty('PEK', value); }
 
+function getP_CurrentUser() { return PropertiesService.getUserProperties().getProperty('CurrentUser'); }
+function setP_CurrentUser(value) { PropertiesService.getUserProperties().setProperty('CurrentUser', value); }
+
 function getP_LastUpdate() { return PropertiesService.getUserProperties().getProperty('LastUpdate'); }
 function setP_LastUpdate(value) { PropertiesService.getUserProperties().setProperty('LastUpdate', value); }
 
@@ -37,8 +40,8 @@ function setP_PasswordChars(value) { PropertiesService.getUserProperties().setPr
 function getP_RevealMode() { return PropertiesService.getUserProperties().getProperty('RevealMode'); }
 function setP_RevealMode(value) { PropertiesService.getUserProperties().setProperty('RevealMode', value); }
          
-function getP_AutoEncryptNewPassword() { return (PropertiesService.getDocumentProperties().getProperty('AutoEncryptNewPassword') === 'true'); }
-function setP_AutoEncryptNewPassword(value) { PropertiesService.getDocumentProperties().setProperty('AutoEncryptNewPassword', value); }
+function getP_AutoEncryptNewPassword() { return (PropertiesService.getUserProperties().getProperty('AutoEncryptNewPassword') === 'true'); }
+function setP_AutoEncryptNewPassword(value) { PropertiesService.getUserProperties().setProperty('AutoEncryptNewPassword', value); }
 
 
 // ################ Script Properties #################
@@ -60,25 +63,32 @@ function getP_EEK(userEmail) {
   return null;
 }
 function setP_EEK(userEmail, value) {
+  var eekArray = deleteP_EEK(userEmail);
+  eekArray.push({ 'userEmailLowered' : userEmail.toLowerCase(), 'EEK' : value });
+  PropertiesService.getDocumentProperties().setProperty('EEK', JSON.stringify(eekArray)); 
+}
+function deleteP_EEK(userEmail) {
   var allEEK = PropertiesService.getDocumentProperties().getProperty('EEK');
   var eekArray = null;
   if (isNullOrWS(allEEK)) eekArray = [];
   else eekArray = JSON.parse(allEEK);
-  eekArray.push({ 'userEmailLowered' : userEmail.toLowerCase(), 'EEK' : value });
-  PropertiesService.getDocumentProperties().setProperty('EEK', JSON.stringify(eekArray)); 
+  if (eekArray != null) {
+    for (var i = 0; i < eekArray.length; i++) {
+      if (eekArray[i].userEmailLowered == userEmail.toLowerCase()) eekArray.splice(i--,1);
+    }
+  }
+  PropertiesService.getDocumentProperties().setProperty('EEK', JSON.stringify(eekArray));
+  return eekArray;
 }
 
 function getP_Sharing() { return PropertiesService.getDocumentProperties().getProperty('Sharing'); }
 function setP_Sharing(value) { PropertiesService.getDocumentProperties().setProperty('Sharing', value); }
 
-function getP_IsKeystoreReady() { return PropertiesService.getDocumentProperties().getProperty('IsKeystoreReady'); }
+function getP_IsKeystoreReady() { return (PropertiesService.getDocumentProperties().getProperty('IsKeystoreReady') === 'true'); }
 function setP_IsKeystoreReady(value) { PropertiesService.getDocumentProperties().setProperty('IsKeystoreReady', value); }
 
 function getP_RevealedRangeSheets() { return PropertiesService.getDocumentProperties().getProperty('RevealedRangeSheets'); }
 function setP_RevealedRangeSheets(value) { PropertiesService.getDocumentProperties().setProperty('RevealedRangeSheets', value); }
-
-//function getP_EncryptionList() { return PropertiesService.getDocumentProperties().getProperty('EncryptionList'); }
-//function setP_EncryptionList(value) { PropertiesService.getDocumentProperties().setProperty('EncryptionList', value); }
 
 function getP_AutolockDelay() { return Number(PropertiesService.getDocumentProperties().getProperty('AutolockDelay')); }
 function setP_AutolockDelay(value) { PropertiesService.getDocumentProperties().setProperty('AutolockDelay', value); }
@@ -126,11 +136,13 @@ function initializeProperties(onlyIfNotExist)  { try  //for logging
   var defautSettings = getDefaultSettings();
   // User Properties
   initializePropertyIfNotExist(userProperties, 'PEK', '', onlyIfNotExist);
+  initializePropertyIfNotExist(userProperties, 'CurrentUser', '', onlyIfNotExist);
   initializePropertyIfNotExist(userProperties, 'LastUpdate', new Date(), onlyIfNotExist);
   initializePropertyIfNotExist(userProperties, 'LockedAt', new Date(), onlyIfNotExist);
   initializePropertyIfNotExist(userProperties, 'PasswordLength', '20', onlyIfNotExist);
   initializePropertyIfNotExist(userProperties, 'PasswordChars', '4', onlyIfNotExist);
   initializePropertyIfNotExist(userProperties, 'RevealMode', 'symbols', onlyIfNotExist);
+  initializePropertyIfNotExist(userProperties, 'AutoEncryptNewPassword', 'true', onlyIfNotExist);
   
   // Document Properties
   initializePropertyIfNotExist(documentProperties, 'EEK', '', onlyIfNotExist);
@@ -211,8 +223,8 @@ function getDefaultSettings()  { try  //for logging
     setFormatAtEncryption : true,
     genPassPunctuations: ',.;:()[]{}/\\',
     genPassSymbols: '!#$%&*+-<=>?@^_|~',
-    genPassAlpha: 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
-    genPassNum: '0123456789'
+    genPassAlpha: 'abcdefgijkmnopqrstwxyzABCDEFGHJKLMNPQRSTWXYZ', // 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ',
+    genPassNum: '123456789' // '0123456789'
   };
   return settings;
 } catch(e) { handleError(e); } } //for logging
