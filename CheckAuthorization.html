@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <link rel="stylesheet" href="https://ssl.gstatic.com/docs/script/css/add-ons1.css">
+    
+    <script>
+    
+    function authorizationOK(userEmail) {
+      if (typeof userEmail == 'undefined' || userEmail == null || userEmail == '') {
+        var el = document.getElementById('message');
+        el.innerHTML = "This encrypted spreadsheet has been shared with you and it's the first time that you open it. Before you use it, you must change your master password.<br><i>(intial password must have been sent to you)</i>:<br><br>Please open the menu<br><b>Add-ons / Keystore / Change master password</b>";
+      }
+    }
+    
+    function authorizationMissing(ex) {
+      var el = document.getElementById('message');
+      el.innerHTML = "This spreadsheet uses Keystore add-on to encrypt and decrypt data. Before you can use it, you first need to authorize Keystore to run on this spreadsheet:<br><br>Please open the menu<br><b>Add-ons / Keystore / Authorize keystore...</b>";
+    }
+    
+    google.script.run.withSuccessHandler(authorizationOK).withFailureHandler(authorizationMissing).checkAuthorization();
+    
+    </script>
+    
+  </head>
+  <body>
+    <div class="sidebar branding-below">
+      <div id="message">Loading...</div>
+    </div>
+    
+  </body>
+</html>
+
+
