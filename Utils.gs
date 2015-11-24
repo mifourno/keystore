@@ -72,9 +72,20 @@ function splitBraces(value)  { try  //for logging
 } catch(e) { handleError(e); } } //for logging
 
 
-function isOwner(value)  { try  //for logging
+function isOwner()  { try  //for logging
 {
-  return (SpreadsheetApp.getActiveSpreadsheet().getOwner().getEmail() == Session.getActiveUser().getEmail());
+  return (SpreadsheetApp.getActiveSpreadsheet().getOwner().getEmail() == getP_CurrentUser());
+} catch(e) { handleError(e); } } //for logging
+
+function isEditor()  { try  //for logging
+{
+  var userEmail = getP_CurrentUser();
+  if (isNullOrWS(userEmail)) return null;
+  var editors = SpreadsheetApp.getActiveSpreadsheet().getEditors();
+  for (var i = 0; i < editors.length; i++) {
+    if (userEmail == editors[i].getEmail()) return true;
+  }
+  return false;
 } catch(e) { handleError(e); } } //for logging
 
 
