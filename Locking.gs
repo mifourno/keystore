@@ -54,8 +54,9 @@ function promptMasterPassword(mode, okHandlerName, cancelHandlerName, argsOkStri
 
 function unlockSpreasheet(masterPassword) { try  //for logging
 {
-  //log('diag', 'unlockSpreasheet', Session.getActiveUser().getEmail() + '\n' + getP_EEK(Session.getActiveUser().getEmail()) + '\n' + masterPassword);
-  var pek = decrypt(getP_EEK(Session.getActiveUser().getEmail()), masterPassword);
+  var userEmail = getP_CurrentUser();
+  
+  var pek = decrypt(getP_EEK(userEmail), masterPassword);
   if (isNullOrWS(pek)) return false;
   
   log('Diagnostic', 'Unlock spreadshit');
@@ -89,6 +90,7 @@ function lockSpreasheet(source) { try  //for logging
 
 function changeMasterPassword() { try  //for logging
 {
+  readCurrentUser();
   promptMasterPassword('change', 'changeMasterPasswordAdmin');
 } catch(e) { handleError(e); } } //for logging
 
@@ -96,35 +98,58 @@ function changeMasterPassword() { try  //for logging
 function changeMasterPasswordAdmin(newMaster) { try  //for logging
 {
   log('Diagnostic', 'Change master password');
+  var userEmail = getP_CurrentUser();
   var pek = getP_PEK(true);
   if (newMaster != null) {
-    setP_EEK(Session.getActiveUser().getEmail(), encrypt(pek, newMaster));
+    setP_EEK(userEmail, encrypt(pek, newMaster));
     serverSideAlert('Success !', 'Your master password has been changed successfully');
   }
 } catch(e) { handleError(e); } } //for logging
 
 
+
+
+
+
+
 //##################################
-//##       RESET KEYSTORE
+//##        AUTOLOCK
 //##################################
 
-function resetSpreadheetAdminOk(newMaster) { try  //for logging
+function checkAutolock()  { try  //for logging
 {
-  if (newMaster != null) {
-    initializeProperties(false);
-    var newEncryptionKey = generateEncryptionKey();
-    setP_EEK(Session.getActiveUser().getEmail(), encrypt(newEncryptionKey, newMaster));
-    setP_IsKeystoreReady(true);
-    onOpen();
-    unlockSpreasheet(newMaster);
-    serverSideAlert('READY !', "You're all set ! You can start encrypting cells. Use the side-bar buttons for that.");
+  if (isLocked()) { tryRemoveAllTriggers(); return; }
+  var diffMs = (new Date()) - new Date(getP_LastUpdate());
+  var diffSecs = Math.round(((diffMs % 86400000) % 3600000) / 1000); // minutes
+  if (diffSecs > getP_AutolockDelay()*60) {
+    lockSpreasheet('auto');
+    SpreadsheetApp.getActiveSpreadsheet().toast('Keystore is locked', 'Autolock !');
   }
 } catch(e) { handleError(e); } } //for logging
 
-function resetSpreadheetAdminCancel() { try  //for logging
+function startAutoLockTrigger()  { try  //for logging
 {
-  removeAllProperties();
+  var autolockDelay = getP_AutolockDelay();
+  if (autolockDelay > 0) {
+    var delay = 1;
+    switch (autolockDelay) {
+      case 3:
+      case 5:
+      case 8:
+        delay = 1;
+        break;
+      case 15:
+      case 30:
+      case 60:
+      default:
+        delay = 5;
+        break;
+    }
+    //var delay = Math.ceil(Math.max(autolockDelay / 10, 1));
+    ScriptApp.newTrigger("checkAutolock").timeBased().everyMinutes(delay).create();
+  }
 } catch(e) { handleError(e); } } //for logging
+
 
 
 //##################################
@@ -133,7 +158,7 @@ function resetSpreadheetAdminCancel() { try  //for logging
 
 function getUsers() { try  //for logging
 {
-  if (!isOwner()) throw new Error('Only the owner of this spreadsheet can share this file');
+  if (!isEditor()) throw new Error("Only people with editor's permissions can share this spreadsheet");
   
   var editors = SpreadsheetApp.getActiveSpreadsheet().getEditors();
   var viewers = SpreadsheetApp.getActiveSpreadsheet().getViewers();
@@ -160,7 +185,7 @@ function addUser(email, canEdit) { try  //for logging
 
 function addUserAdmin(params) { try  //for logging
 {
-  if (!isOwner()) throw new Error('Only the owner of this spreadsheet can share this file');
+  if (!isEditor()) throw new Error("Only people with editor's permissions can share this spreadsheet");
   var pek = getP_PEK(true);
   
   var paramSplited = params.split(',');
@@ -175,19 +200,17 @@ function addUserAdmin(params) { try  //for logging
     showSharing(email, canEdit, true);
     return;
   }
-  var charset = getP_GenPassNum() + getP_GenPassAlpha() + getP_GenPassSymbols();
-  var newUserMaster = genNewPassword(12, charset);
+  var charset = getP_GenPassNum() + getP_GenPassAlpha();
+  var newUserMaster = genNewPassword(16, charset);
   setP_EEK(email, encrypt(pek, newUserMaster));
   
-  //log('diag', 'addUserAdmin', email + '\n' + getP_EEK(email) + '\n' + newUserMaster);
-  
-  serverSideAlert('Success !', 'Your have just shared shared this file with ' + email + '\nTo be able to decrypt data he or she will need this temporary password:\n\n'+ newUserMaster + '\n\nThe person will be asked to change this password on the first connection.');
+  serverSideAlert('Success !', 'Your have just shared this file with ' + email + '\nTo be able to decrypt data he or she will need this temporary password:\n\n'+ newUserMaster + '\n\nThe person will be asked to change this password on the first connection.');
   showSharing();
 } catch(e) { handleError(e); } } //for logging
 
 function updateRights(email, canEdit) { try  //for logging
 {
-  if (!isOwner()) throw new Error('Only the owner of this spreadsheet can share this file');
+  if (!isEditor()) throw new Error("Only people with editor's permissions can share this spreadsheet");
   
   if (canEdit) SpreadsheetApp.getActiveSpreadsheet().addEditor(email);
   else { 
@@ -198,8 +221,9 @@ function updateRights(email, canEdit) { try  //for logging
 
 function removeUser(email, canEdit) { try  //for logging
 {
-  if (!isOwner()) throw new Error('Only the owner of this spreadsheet can share this file');
+  if (!isEditor()) throw new Error("Only people with editor's permissions can share this spreadsheet");
   
+  deleteP_EEK(email);
   SpreadsheetApp.getActiveSpreadsheet().removeViewer(email);
 } catch(e) { handleError(e); } } //for logging
 
@@ -208,31 +232,4 @@ function getUserPoco(user, canEdit, owner) { try  //for logging
 {
   var email = user.getEmail();
   return { email : email, canEdit : canEdit, isOwner : email == owner };
-} catch(e) { handleError(e); } } //for logging
-
-
-
-
-//##################################
-//##        AUTOLOCK
-//##################################
-
-function checkAutolock()  { try  //for logging
-{
-  if (isLocked()) { tryRemoveAllTriggers(); return; }
-  var diffMs = (new Date()) - new Date(getP_LastUpdate());
-  var diffSecs = Math.round(((diffMs % 86400000) % 3600000) / 1000); // minutes
-  if (diffSecs > getP_AutolockDelay()*60) {
-    lockSpreasheet('auto');
-    SpreadsheetApp.getActiveSpreadsheet().toast('Keystore is locked', 'Autolock !');
-  }
-} catch(e) { handleError(e); } } //for logging
-
-function startAutoLockTrigger()  { try  //for logging
-{
-  var autolockDelay = getP_AutolockDelay();
-  if (autolockDelay > 0) {
-    var delay = Math.ceil(Math.max(autolockDelay / 10, 1));
-    ScriptApp.newTrigger("checkAutolock").timeBased().everyMinutes(delay).create();
-  }
 } catch(e) { handleError(e); } } //for logging
