@@ -278,8 +278,8 @@ function updateMenuEntries()  { try  //for logging
   myMenu.addItem('⌦ Encrypt selection', 'markAsSensitive');
   myMenu.addSeparator();
   
-  myMenu.addItem('⌫ Reveal in popup', 'revealPopup');
-  myMenu.addItem('⌫ Reveal permanently', 'removeEncryption');
+  myMenu.addItem('⌫ Reveal: show in popup', 'revealPopup');
+  myMenu.addItem('⌫ Reveal: decrypt the cell(s)', 'removeEncryption');
   myMenu.addSeparator();
   
   myMenu.addSubMenu(SpreadsheetApp.getUi().createMenu('Generate password')
