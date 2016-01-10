@@ -54,6 +54,7 @@ function setP_ProtectionMessage(value) { PropertiesService.getScriptProperties()
 // ################ Document Properties #################
 
 function getP_EEK(userEmail) { 
+  var userEmail = getP_CurrentUser();
   var eekArray = JSON.parse(PropertiesService.getDocumentProperties().getProperty('EEK'));
   if (eekArray != null) {
     for (var i = 0; i < eekArray.length; i++) {
@@ -121,19 +122,17 @@ function getP_InitFormat_Color() { return PropertiesService.getDocumentPropertie
 function setP_InitFormat_Color(value) { PropertiesService.getDocumentProperties().setProperty('IF_COL', value); }
 
 
-function initializeScriptProperties(onlyIfNotExist)  { try  //for logging
-{
-  var scriptProperties = PropertiesService.getScriptProperties();
-  // Script Properties
-  initializePropertyIfNotExist(scriptProperties, 'ProgramName', 'Keystore', onlyIfNotExist);
-  initializePropertyIfNotExist(scriptProperties, 'ProtectionMessage', 'Encrypted', onlyIfNotExist);
-} catch(e) { handleError(e); } } //for logging
-
 function initializeProperties(onlyIfNotExist)  { try  //for logging
 {
+  var scriptProperties = PropertiesService.getScriptProperties();
   var userProperties = PropertiesService.getUserProperties();
   var documentProperties = PropertiesService.getDocumentProperties();
   var defautSettings = getDefaultSettings();
+    
+  // Script Properties
+  initializePropertyIfNotExist(scriptProperties, 'ProgramName', 'Keystore', onlyIfNotExist);
+  initializePropertyIfNotExist(scriptProperties, 'ProtectionMessage', 'Encrypted', onlyIfNotExist);
+  
   // User Properties
   initializePropertyIfNotExist(userProperties, 'PEK', '', onlyIfNotExist);
   initializePropertyIfNotExist(userProperties, 'CurrentUser', '', onlyIfNotExist);
